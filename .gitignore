@@ -1,0 +1,20 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Local env and secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime outputs
+logs/
+.tmp/
