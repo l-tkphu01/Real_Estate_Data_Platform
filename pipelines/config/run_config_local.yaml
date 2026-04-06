@@ -1,0 +1,5 @@
+# Run config mẫu cho Dagster local execution.
+# Các op chưa implement logic nên file này đóng vai trò blueprint.
+
+ops: {}
+resources: {}

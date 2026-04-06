@@ -1,0 +1,8 @@
+# Blueprint schedule config.
+# Ví dụ: khai báo cron cho ingestion hằng giờ và processing hằng ngày.
+
+schedules:
+  ingestion_hourly:
+    cron: "0 * * * *"
+  processing_daily:
+    cron: "30 1 * * *"

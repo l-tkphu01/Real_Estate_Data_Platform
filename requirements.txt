@@ -8,6 +8,7 @@ requests==2.32.3
 tenacity==9.0.0
 python-dotenv==1.0.1
 pydantic-settings==2.5.2
+PyYAML==6.0.2
 
 # Data processing and lakehouse
 pandas==2.2.2

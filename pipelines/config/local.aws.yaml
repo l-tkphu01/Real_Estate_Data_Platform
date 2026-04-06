@@ -1,0 +1,6 @@
+# Dùng profile này khi chạy local nhưng kết nối trực tiếp AWS S3.
+# Để trống s3_endpoint để boto3 dùng AWS endpoint mặc định theo region.
+
+storage:
+  s3_endpoint: null
+  s3_secure: true

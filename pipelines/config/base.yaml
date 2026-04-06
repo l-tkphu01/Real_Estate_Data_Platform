@@ -1,0 +1,27 @@
+runtime:
+  project_name: real-estate-data-platform
+  dagster_home: /opt/dagster/dagster_home
+  superset_secret_key: replace-this-in-production
+
+logging:
+  level: INFO
+  fmt: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+
+storage:
+  s3_bucket: real-estate-platform
+  s3_region: us-east-1
+  s3_endpoint: null
+  s3_access_key: CHANGEME
+  s3_secret_key: CHANGEME
+  s3_secure: false
+  raw_prefix: raw/real_estate
+  bronze_prefix: bronze/real_estate
+  silver_prefix: silver/real_estate
+  gold_prefix: gold/real_estate
+  cdc_state_prefix: state/cdc
+
+ingestion:
+  data_source_url: https://example.com/api/properties
+  request_timeout_seconds: 30
+  ingestion_max_retries: 3
+  ingestion_backoff_seconds: 2

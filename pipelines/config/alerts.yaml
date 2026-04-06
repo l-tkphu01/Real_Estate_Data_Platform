@@ -1,0 +1,10 @@
+# Blueprint alert config.
+# Có thể map sang Slack, Email hoặc incident webhook ở giai đoạn production.
+
+alerts:
+  on_failure:
+    channel: slack
+    severity: high
+  on_sla_breach:
+    channel: email
+    severity: medium

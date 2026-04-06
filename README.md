@@ -188,6 +188,10 @@ Mục tiêu:
 - `S3_ENDPOINT=http://minio:9000`
 - `S3_ACCESS_KEY=minioadmin`
 - `S3_SECRET_KEY=minioadmin`
+3. Chọn profile config-driven:
+- `APP_PROFILE=local.minio` cho MinIO local.
+- `APP_PROFILE=local.aws` cho AWS S3.
+- `CONFIG_DIR=pipelines/config` để chỉ thư mục profile.
 
 Definition of Done:
 - Tất cả biến bắt buộc đã có giá trị.
@@ -324,6 +328,7 @@ S3_BUCKET=real-estate-platform
 ## 9) Chuyển MinIO sang AWS S3 (không đổi core logic)
 
 Chỉ cần đổi biến môi trường:
+- Đặt `APP_PROFILE=local.aws`.
 - Để trống `S3_ENDPOINT=`.
 - Đặt `S3_REGION=<aws-region>`.
 - Đặt `S3_ACCESS_KEY` và `S3_SECRET_KEY` theo IAM.

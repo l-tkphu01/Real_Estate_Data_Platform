@@ -1,0 +1,8 @@
+runtime:
+  dagster_home: /opt/dagster/dagster_home
+
+storage:
+  s3_endpoint: http://minio:9000
+  s3_access_key: minioadmin
+  s3_secret_key: minioadmin
+  s3_secure: false
