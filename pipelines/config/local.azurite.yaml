@@ -1,0 +1,7 @@
+runtime:
+  dagster_home: /opt/dagster/dagster_home
+
+storage:
+  azure_endpoint: http://azurite:10000/devstoreaccount1
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==

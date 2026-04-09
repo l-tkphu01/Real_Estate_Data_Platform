@@ -1,1 +1,1 @@
-"""Storage abstraction package cho object stores tương thích S3."""
+"""Storage abstraction package cho Azure Data Lake và Azurite."""

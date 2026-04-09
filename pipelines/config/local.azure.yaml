@@ -1,0 +1,3 @@
+# Dùng profile này khi chạy Cloud trực tiếp Azure ADLS Gen2.
+storage:
+  azure_endpoint: null

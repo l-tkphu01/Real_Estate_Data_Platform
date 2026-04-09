@@ -8,12 +8,10 @@ logging:
   fmt: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 
 storage:
-  s3_bucket: real-estate-platform
-  s3_region: us-east-1
-  s3_endpoint: null
-  s3_access_key: CHANGEME
-  s3_secret_key: CHANGEME
-  s3_secure: false
+  azure_container: real-estate-platform
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: CHANGEME
+  azure_endpoint: null
   raw_prefix: raw/real_estate
   bronze_prefix: bronze/real_estate
   silver_prefix: silver/real_estate

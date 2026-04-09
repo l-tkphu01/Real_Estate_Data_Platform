@@ -7,9 +7,9 @@
 - Tối ưu: kiểm tra contract dữ liệu nguồn (field bắt buộc, kiểu số, thời gian).
 
 ## 2) Rủi ro và tối ưu ở tầng Storage
-- Rủi ro: phụ thuộc chặt vào endpoint MinIO, khó chuyển cloud.
-- Tối ưu: dùng một abstraction interface cho cả MinIO và AWS S3.
-- Tối ưu: đặt key có partition theo thời gian (`dt=YYYY-MM-DD/hr=HH`).
+- Rủi ro: phụ thuộc chặt vào endpoint cục bộ, khó chuyển cloud.
+- Tối ưu: dùng một abstraction interface và Spark resource config cho cả Azurite (local) và Azure Data Lake Gen2.
+- Tối ưu: đặt key có partition theo thời gian (`dt=YYYY-MM-DD/hr=HH`), tận dụng cấu trúc thư mục thật của ADLS.
 
 ## 3) Rủi ro và tối ưu ở tầng CDC
 - Rủi ro: full reload mỗi lần chạy gây tốn tài nguyên và dễ trùng dữ liệu.
@@ -23,8 +23,8 @@
 - Tối ưu: bảo đảm transform idempotent (cùng input -> cùng output).
 
 ## 5) Rủi ro và tối ưu ở tầng Lakehouse
-- Rủi ro: ghi không transaction dẫn tới bảng không nhất quán.
-- Tối ưu: dùng Delta merge/upsert theo business key.
+- Rủi ro: ghi không transaction dẫn tới bảng không nhất quán. Xử lý dữ liệu in-memory gây tràn RAM máy.
+- Tối ưu: dùng `pyspark` và `delta-spark` merge/upsert theo business key. Spark có cơ chế Distributed out-of-core.
 - Tối ưu: schema evolution chỉ bật khi có kiểm soát thay đổi.
 
 ## 6) Rủi ro và tối ưu về Orchestration/Monitoring

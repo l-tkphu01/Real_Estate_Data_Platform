@@ -2,7 +2,7 @@
 
 Nguồn cấu hình được nạp theo thứ tự ưu tiên:
 1) base.yaml
-2) profile yaml (ví dụ: local.minio.yaml)
+2) profile yaml (ví dụ: local.azurite.yaml)
 3) environment variables
 """
 
@@ -41,14 +41,12 @@ class LoggingSettings:
 
 @dataclass(frozen=True, slots=True)
 class StorageSettings:
-    """Storage settings cho S3-compatible object storage."""
+    """Storage settings cho Azure Data Lake / Azurite."""
 
-    s3_bucket: str
-    s3_region: str
-    s3_endpoint: str | None
-    s3_access_key: str
-    s3_secret_key: str
-    s3_secure: bool
+    azure_container: str
+    azure_storage_account: str
+    azure_storage_key: str
+    azure_endpoint: str | None
     raw_prefix: str
     bronze_prefix: str
     silver_prefix: str
@@ -76,59 +74,30 @@ class Settings:
     ingestion: IngestionSettings
 
     @property
-    def s3_bucket(self) -> str:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
-
-        return self.storage.s3_bucket
+    def azure_container(self) -> str:
+        return self.storage.azure_container
 
     @property
-    def s3_region(self) -> str:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
-
-        return self.storage.s3_region
+    def azure_storage_account(self) -> str:
+        return self.storage.azure_storage_account
 
     @property
-    def s3_endpoint(self) -> str | None:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
-
-        return self.storage.s3_endpoint
+    def azure_storage_key(self) -> str:
+        return self.storage.azure_storage_key
 
     @property
-    def s3_access_key(self) -> str:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
+    def azure_endpoint(self) -> str | None:
+        return self.storage.azure_endpoint
 
-        return self.storage.s3_access_key
+    def is_azure_cloud_mode(self) -> bool:
+        """Trả về True khi chạy với Azure Cloud thay vì Azurite."""
+        return not bool(self.storage.azure_endpoint)
 
-    @property
-    def s3_secret_key(self) -> str:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
-
-        return self.storage.s3_secret_key
-
-    @property
-    def log_level(self) -> str:
-        """Giữ tương thích ngược với các module đang dùng khóa cũ."""
-
-        return self.logging.level
-
-    def is_aws_mode(self) -> bool:
-        """Trả về True khi chạy với AWS S3 thay vì endpoint local."""
-
-        return not bool(self.storage.s3_endpoint)
-
-    def boto3_client_kwargs(self) -> dict[str, Any]:
-        """Sinh boto3 client kwargs để lớp storage không phụ thuộc provider."""
-
-        kwargs: dict[str, Any] = {
-            "service_name": "s3",
-            "region_name": self.storage.s3_region,
-            "aws_access_key_id": self.storage.s3_access_key,
-            "aws_secret_access_key": self.storage.s3_secret_key,
-        }
-        if self.storage.s3_endpoint:
-            kwargs["endpoint_url"] = self.storage.s3_endpoint
-        return kwargs
-
+    def azure_connection_string(self) -> str:
+        """Ghi chuỗi kết nối an toàn."""
+        if self.storage.azure_endpoint:
+            return f"DefaultEndpointsProtocol=http;AccountName={self.storage.azure_storage_account};AccountKey={self.storage.azure_storage_key};BlobEndpoint={self.storage.azure_endpoint};"
+        return f"DefaultEndpointsProtocol=https;AccountName={self.storage.azure_storage_account};AccountKey={self.storage.azure_storage_key};EndpointSuffix=core.windows.net"
 
 def _parse_bool(value: str) -> bool:
     """Parse chuỗi boolean từ environment variables."""
@@ -175,12 +144,10 @@ def _load_env_overrides() -> dict[str, Any]:
         "LOG_FORMAT": (("logging", "fmt"), str),
         "DAGSTER_HOME": (("runtime", "dagster_home"), str),
         "SUPERSET_SECRET_KEY": (("runtime", "superset_secret_key"), str),
-        "S3_BUCKET": (("storage", "s3_bucket"), str),
-        "S3_REGION": (("storage", "s3_region"), str),
-        "S3_ENDPOINT": (("storage", "s3_endpoint"), str),
-        "S3_ACCESS_KEY": (("storage", "s3_access_key"), str),
-        "S3_SECRET_KEY": (("storage", "s3_secret_key"), str),
-        "S3_SECURE": (("storage", "s3_secure"), _parse_bool),
+        "AZURE_CONTAINER": (("storage", "azure_container"), str),
+        "AZURE_STORAGE_ACCOUNT": (("storage", "azure_storage_account"), str),
+        "AZURE_STORAGE_KEY": (("storage", "azure_storage_key"), str),
+        "AZURE_ENDPOINT": (("storage", "azure_endpoint"), str),
         "RAW_PREFIX": (("storage", "raw_prefix"), str),
         "BRONZE_PREFIX": (("storage", "bronze_prefix"), str),
         "SILVER_PREFIX": (("storage", "silver_prefix"), str),
@@ -197,7 +164,7 @@ def _load_env_overrides() -> dict[str, Any]:
         raw = os.getenv(env_name)
         if raw is None:
             continue
-        if env_name == "S3_ENDPOINT" and raw.strip() == "":
+        if env_name == "AZURE_ENDPOINT" and raw.strip() == "":
             _set_nested(overrides, path, None)
             continue
         _set_nested(overrides, path, parser(raw))
@@ -233,15 +200,13 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
         fmt=str(logging_cfg.get("fmt", "%(asctime)s | %(levelname)s | %(name)s | %(message)s")),
     )
 
-    endpoint = storage_cfg.get("s3_endpoint")
+    endpoint = storage_cfg.get("azure_endpoint")
     endpoint = None if endpoint in {"", None} else str(endpoint)
     storage = StorageSettings(
-        s3_bucket=str(_required(storage_cfg, "s3_bucket", "storage")),
-        s3_region=str(_required(storage_cfg, "s3_region", "storage")),
-        s3_endpoint=endpoint,
-        s3_access_key=str(_required(storage_cfg, "s3_access_key", "storage")),
-        s3_secret_key=str(_required(storage_cfg, "s3_secret_key", "storage")),
-        s3_secure=bool(storage_cfg.get("s3_secure", False)),
+        azure_container=str(_required(storage_cfg, "azure_container", "storage")),
+        azure_storage_account=str(_required(storage_cfg, "azure_storage_account", "storage")),
+        azure_storage_key=str(_required(storage_cfg, "azure_storage_key", "storage")),
+        azure_endpoint=endpoint,
         raw_prefix=str(storage_cfg.get("raw_prefix", "raw/real_estate")),
         bronze_prefix=str(storage_cfg.get("bronze_prefix", "bronze/real_estate")),
         silver_prefix=str(storage_cfg.get("silver_prefix", "silver/real_estate")),
@@ -271,7 +236,7 @@ def load_settings(profile: str | None = None, config_dir: str | None = None) -> 
 
     load_dotenv(PROJECT_ROOT / ".env", override=False)
 
-    selected_profile = profile or os.getenv("APP_PROFILE", "local.minio")
+    selected_profile = profile or os.getenv("APP_PROFILE", "local.azurite")
     raw_config_dir = config_dir or os.getenv("CONFIG_DIR", "pipelines/config")
     resolved_dir = Path(raw_config_dir)
     if not resolved_dir.is_absolute():

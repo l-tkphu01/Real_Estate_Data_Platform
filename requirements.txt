@@ -3,7 +3,8 @@ dagster==1.8.12
 dagster-webserver==1.8.12
 
 # Storage and integration
-boto3==1.35.29
+azure-storage-blob==12.19.0
+adlfs==2023.12.0
 requests==2.32.3
 tenacity==9.0.0
 python-dotenv==1.0.1
@@ -11,6 +12,8 @@ pydantic-settings==2.5.2
 PyYAML==6.0.2
 
 # Data processing and lakehouse
+pyspark==3.5.0
+delta-spark==3.1.0
 pandas==2.2.2
 pyarrow==17.0.0
 deltalake==0.20.2

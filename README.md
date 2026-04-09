@@ -9,7 +9,7 @@ Ingestion -> Raw Storage -> CDC -> Processing -> Lakehouse -> Analytics -> Visua
 Mục tiêu thiết kế:
 - Định hướng production nhưng vẫn thân thiện với người mới.
 - Thiết kế mô-đun (modular), idempotent, có khả năng mở rộng theo khối lượng dữ liệu.
-- Chạy local bằng MinIO, sau đó chuyển sang AWS S3 mà không đổi logic cốt lõi.
+- Chạy local bằng Azurite (Azure Storage Emulator), sau đó chuyển sang Azure Data Lake Storage Gen2 (ADLS Gen2) mà không đổi logic cốt lõi.
 
 ## 2) Trạng thái hiện tại (giai đoạn thiết kế, chưa code logic)
 
@@ -24,10 +24,10 @@ Xem chi tiết tại file `docs/pre_build_assessment.md`.
 
 Tóm tắt nhanh:
 - Ingestion: cần retry, timeout, phân loại lỗi, kiểm tra contract dữ liệu nguồn.
-- Storage: cần abstraction S3 để tránh hardcode MinIO.
+- Storage: cần abstraction Azure Blob/ADLS Gen2 để tránh hardcode Azurite.
 - CDC: bắt buộc lưu fingerprint state để tránh full reload.
-- Processing: cần validation, tách record lỗi sang vùng quarantine.
-- Lakehouse: cần Delta merge/upsert để bảo đảm ACID và replay-safe.
+- Processing: cần validation, tách record lỗi sang vùng quarantine. Xử lý chính bằng PySpark (thay vì Pandas) để tránh sập RAM.
+- Lakehouse: cần Delta merge/upsert bằng delta-spark để bảo đảm ACID và replay-safe.
 - Orchestration: cần logging có cấu trúc, theo dõi SLA, retry chính sách rõ ràng.
 
 ## 4) Kiến trúc tổng thể
@@ -39,7 +39,7 @@ Tóm tắt nhanh:
 - Có retry + xử lý lỗi cơ bản.
 
 2. Raw Storage
-- Lưu payload gốc (JSON/Parquet) vào MinIO/S3.
+- Lưu payload gốc (JSON/Parquet) vào Azurite/ADLS Gen2.
 - Lưu theo snapshot bất biến để audit và replay.
 
 3. CDC
@@ -67,8 +67,9 @@ Tóm tắt nhanh:
 - Dùng Superset làm dashboard giá và so sánh khu vực.
 
 ### 4.2 Stack local
-- MinIO: object storage tương thích S3.
-- Dagster: orchestration + monitoring.
+- Azurite: object storage giả lập Azure Blob Storage.
+- Dagster: orchestration + monitoring, khởi tạo PySpark Session.
+- Apache Spark (PySpark): xử lý dữ liệu lớn in-memory & distributed, có config giới hạn RAM (e.g. 2GB) khi chạy local.
 - Superset: BI và dashboard.
 
 ## 5) Cấu trúc thư mục dự án
@@ -118,7 +119,7 @@ Real Estate Data Platform – End-to-End Data Pipeline/
     |   `-- normalizer.py
     |-- storage/
     |   |-- __init__.py
-    |   |-- s3_client.py
+    |   |-- azure_client.py
     |   `-- raw_storage.py
     |-- cdc/
     |   |-- __init__.py
@@ -147,7 +148,7 @@ Real Estate Data Platform – End-to-End Data Pipeline/
 ### 6.2 Nhóm ingestion + raw
 - `src/scraper/client.py`: lấy dữ liệu nguồn, retry, xử lý lỗi.
 - `src/scraper/normalizer.py`: chuẩn hóa payload về schema chung.
-- `src/storage/s3_client.py`: abstraction đọc/ghi S3 (MinIO hoặc AWS).
+- `src/storage/azure_client.py`: abstraction đọc/ghi thư mục (Azurite hoặc ADLS).
 - `src/storage/raw_storage.py`: tạo key partition và lưu snapshot raw.
 
 ### 6.3 Nhóm CDC
@@ -183,13 +184,13 @@ Mục tiêu:
 
 ### Bước 1 - Khởi tạo cấu hình
 
-1. Tạo file `.env` từ `.env.example`.
-2. Xác nhận giá trị MinIO local:
-- `S3_ENDPOINT=http://minio:9000`
-- `S3_ACCESS_KEY=minioadmin`
-- `S3_SECRET_KEY=minioadmin`
+1. Tạo file `.env` tAzurite local:
+- `AZURE_STORAGE_ACCOUNT=devstoreaccount1`
+- `AZURE_STORAGE_KEY=Eby8vdM02xNO...`
+- `AZURE_ENDPOINT=http://azurite:10000/devstoreaccount1`
 3. Chọn profile config-driven:
-- `APP_PROFILE=local.minio` cho MinIO local.
+- `APP_PROFILE=local.azurite` cho Azurite local.
+- `APP_PROFILE=local.azure` cho Azure Data LakeO local.
 - `APP_PROFILE=local.aws` cho AWS S3.
 - `CONFIG_DIR=pipelines/config` để chỉ thư mục profile.
 
@@ -204,7 +205,7 @@ docker compose up -d --build
 ```
 
 Kiểm tra:
-- MinIO Console: http://localhost:9001
+- Azurite Container Logs
 - Dagster UI: http://localhost:3000
 - Superset: http://localhost:8088
 
@@ -317,22 +318,22 @@ Bắt buộc có:
 
 Lấy `.env.example` làm chuẩn.
 
-Với local MinIO:
+Với local Azurite:
 ```env
-S3_ENDPOINT=http://minio:9000
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET=real-estate-platform
+AZURE_ENDPOINT=http://azurite:10000/devstoreaccount1
+AZURE_STORAGE_ACCOUNT=devstoreaccount1
+AZURE_STORAGE_KEY=Eby8vd...
+AZURE_CONTAINER=real-estate-platform
 ```
 
-## 9) Chuyển MinIO sang AWS S3 (không đổi core logic)
+## 9) Chuyển Azurite sang Azure Data Lake (không đổi core logic)
 
 Chỉ cần đổi biến môi trường:
-- Đặt `APP_PROFILE=local.aws`.
-- Để trống `S3_ENDPOINT=`.
-- Đặt `S3_REGION=<aws-region>`.
-- Đặt `S3_ACCESS_KEY` và `S3_SECRET_KEY` theo IAM.
-- Đặt `S3_BUCKET` theo bucket thật trên AWS.
+- Đặt `APP_PROFILE=local.azure`.
+- Để trống `AZURE_ENDPOINT=`.
+- Đặt `AZURE_STORAGE_ACCOUNT` và `AZURE_STORAGE_KEY` theo Azure Tenant của bạn.
+- Đặt `AZURE_CONTAINER` theo container thực tế.
+- Cloud Authentication qua Connection String và adlfs/hadoop-azure.
 
 Nguyên tắc:
 - Toàn bộ module chỉ gọi qua interface storage abstraction.
@@ -361,8 +362,8 @@ Nguyên tắc:
 2. CDC fingerprint giải quyết vấn đề gì?
 - Tránh full reload, giảm tài nguyên, giữ idempotency.
 
-3. Làm sao migrate MinIO sang AWS S3 mà không đổi code lõi?
-- Dùng storage abstraction, chỉ thay biến môi trường.
+3. Làm sao migrate Azurite sang Azure Data Lake mà không đổi code lõi?
+- Dùng storage abstraction, chỉ thay biến môi trường. SparkSession cũng được config tự động lấy credentials Cloud thay vì endpoint devstore.
 
 4. Vì sao cần tách bronze/silver/gold?
 - Mỗi layer có mục tiêu khác nhau: ingest, curate, serve BI.
@@ -376,7 +377,7 @@ Nguyên tắc:
 ## 13) Kế hoạch tiếp theo đề xuất
 
 Theo đúng thứ tự để hạn chế rủi ro:
-1. Hoàn thiện `src/config.py` và `src/storage/s3_client.py` trước.
+1. Hoàn thiện `src/config.py`, `pipelines/resources.py` (Mở SparkSession RAM nhỏ) và `src/storage/azure_client.py` trước.
 2. Hoàn thiện ingestion + raw snapshot.
 3. Hoàn thiện CDC + kiểm thử idempotency.
 4. Hoàn thiện processing/lakehouse.
