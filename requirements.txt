@@ -22,5 +22,10 @@ deltalake==0.20.2
 papermill==2.6.0
 jupyter==1.0.0
 
+# Asynchronous Scraping & Validation
+aiohttp==3.9.5
+fake-useragent==1.5.1
+pydantic==2.7.1
+
 # Testing
 pytest==8.1.1

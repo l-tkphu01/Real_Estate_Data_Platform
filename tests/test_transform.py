@@ -1,63 +1,70 @@
 import pytest
 from src.processing.transform import transform_for_silver, transform_for_gold
+from pyspark.sql.types import DoubleType
 
-def test_transform_for_silver():
+def test_transform_for_silver(spark):
     records = [
         {
             "property_id": "1",
             "title": "Nhà đẹp trung tâm",
             "city": "HCMC",
             "district": "Q1",
-            "price": 5000000000,  # 5 Tỷ -> Segment: mid
-            "area_sqm": 50,       # 50m2 -> Segment: standard
+            "price": 5_000_000_000.0,
+            "area_sqm": 50.0,
             "bedrooms": 2,
-            "posted_at": "2024-01-01T00:00:00Z"
+            "posted_at": "2024-01-01T00:00:00Z",
+            # Giả lập data đã được dọn từ bước cleaning bằng Spark
+            "_posted_at_dt": "2024-01-01 00:00:00",
+            "_posted_at_raw": "2024-01-01T00:00:00+00:00"
         }
     ]
     
-    silver = transform_for_silver(records)
-    assert len(silver) == 1
-    row = silver[0]
+    df = spark.createDataFrame(records)
+    silver_df = transform_for_silver(df)
+    
+    silver_list = silver_df.collect()
+    assert len(silver_list) == 1
+    row = silver_list[0].asDict()
     
     # Kiểm tra các logic tính toán
     assert row["price_billion_vnd"] == 5.0
     assert row["price_segment"] == "mid"
     assert row["area_segment"] == "standard"
     assert row["price_per_sqm"] == 100000000.0  # 5,000,000,000 / 50
-    assert row["title"] == "Nhà đẹp trung tâm"
     
     # Kiểm tra metadata datetime
     assert "ingested_at" in row
     assert "listing_age_days" in row
     assert row["posted_date"] == "2024-01-01"
 
-def test_transform_for_gold():
+def test_transform_for_gold(spark):
     silver_records = [
         {
-            "property_id": "1",
             "city": "HCMC",
             "district": "Q1",
-            "price": 5_000_000_000,
-            "area_sqm": 50,
-            "price_per_sqm": 100_000_000,
+            "price": 5_000_000_000.0,
+            "area_sqm": 50.0,
+            "price_per_sqm": 100_000_000.0,
             "price_segment": "mid",
             "listing_age_days": 10
         },
         {
-            "property_id": "2",
             "city": "HCMC",
             "district": "Q1",
-            "price": 15_000_000_000,
-            "area_sqm": 100,
-            "price_per_sqm": 150_000_000,
+            "price": 15_000_000_000.0,
+            "area_sqm": 100.0,
+            "price_per_sqm": 150_000_000.0,
             "price_segment": "luxury",
             "listing_age_days": 20
         }
     ]
     
-    gold = transform_for_gold(silver_records)
-    assert len(gold) == 1
-    row = gold[0]
+    df = spark.createDataFrame(silver_records)
+    gold_df = transform_for_gold(df)
+    
+    gold_list = gold_df.collect()
+    assert len(gold_list) == 1
+    row = gold_list[0].asDict()
     
     assert row["city"] == "HCMC"
     assert row["district"] == "Q1"

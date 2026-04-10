@@ -31,12 +31,15 @@ def build_spark_resource(settings: Settings) -> Any:
     from pyspark.sql import SparkSession
     
     # 1GB RAM limit de test an toan tren may ca nhan, tranh JVM bi kill (JAVA_GATEWAY_EXITED) do vuot qua RAM cua Docker
+    # Dùng RawLocalFileSystem để tắt hoàn toàn tính năng đẻ rác .crc của Hadoop Local Checksum file
     builder = SparkSession.builder.appName(settings.runtime.project_name) \
         .config("spark.driver.memory", "1g") \
         .config("spark.executor.memory", "1g") \
-        .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.6") \
+        .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+        .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
+        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 
     # Connect to Azurite/Azure
     acc_name = settings.azure_storage_account

@@ -23,19 +23,28 @@ from src.processing.validation import validate_records
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _delta_path(prefix: str) -> str:
-    target = PROJECT_ROOT / "data" / "lakehouse" / prefix
-    target.parent.mkdir(parents=True, exist_ok=True)
-    return str(target)
+def _delta_path(prefix: str, settings: Any) -> str:
+    """Xây dựng đường dẫn Delta Lake linh hoạt dựa trên config driven.
+    Trên local thì lưu vào thư mục dự án, trên cloud thì dùng path từ settings.
+    """
+    if "local" in settings.runtime.profile:
+        # Chạy ở bất kì profile local nào cũng ghi trực tiếp xuống file disk trong volume 
+        # (DeltaLake / PySpark đọc file local nhanh và ổn định hơn rất nhiều so với ABFS Azurite giả lập)
+        target = PROJECT_ROOT / "data" / "lakehouse" / prefix
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return str(target)
+    else:
+        # Giả lập đường dẫn Cloud Azure (abfs://) dựa trên config-driven
+        return f"abfs://{settings.storage.azure_container}@{settings.azure_storage_account}.dfs.core.windows.net/{prefix}"
 
 
-@op(required_resource_keys={"settings", "storage"})
+@op(required_resource_keys={"settings", "storage"}) # Cần storage để đọc raw snapshot, settings để log và config
 def op_load_latest_raw_records(context) -> list[dict[str, Any]]:
     """Đọc snapshot raw mới nhất từ Azurite/Azure để xử lý downstream."""
-    settings = context.resources.settings
-    storage = context.resources.storage
+    settings = context.resources.settings 
+    storage = context.resources.storage 
 
-    latest_key = storage.get_latest_key(settings.storage.raw_prefix)
+    latest_key = storage.get_latest_key(settings.storage.raw_prefix) # Tìm blob mới nhất trong prefix raw/ để nạp dữ liệu
     if not latest_key:
         context.log.warning("Không tìm thấy raw snapshot để xử lý.")
         return []
@@ -50,10 +59,21 @@ def op_load_latest_raw_records(context) -> list[dict[str, Any]]:
     return records
 
 
-@op
-def op_validate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
-    """Chạy basic data quality checks và tách invalid records."""
-    valid_records, invalid_records = validate_records(records)
+@op(required_resource_keys={"settings", "spark"}) 
+def op_validate_records(context, records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Chạy basic data quality checks bằng PySpark và tách invalid records."""
+    spark = context.resources.spark
+    if not records:
+        return {"valid_records": [], "invalid_records": [], "quality_metrics": {"total_records": 0, "valid_records": 0, "invalid_records": 0, "quality_rate": 0.0}}
+        
+    df = spark.createDataFrame(records)
+    valid_df, invalid_df = validate_records(df)
+    
+    # Collect back to Python objects for logging/passing between Dagster default ops
+    # Trong môi trường production thực tế sẽ dùng PySparkIOManager hoặc truyền Delta Lake Paths
+    valid_records = [row.asDict() for row in valid_df.collect()]
+    invalid_records = [row.asDict() for row in invalid_df.collect()]
+    
     total = len(records)
     valid_count = len(valid_records)
     invalid_count = len(invalid_records)
@@ -70,16 +90,16 @@ def op_validate_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-@op(required_resource_keys={"settings", "storage"})
+@op(required_resource_keys={"settings", "storage"}) # Ghi lại báo cáo chất lượng dữ liệu để theo dõi health của pipeline, đặc biệt khi có nhiều nguồn dữ liệu hoặc schema phức tạp.
 def op_publish_data_quality_report(context, validation_result: dict[str, Any]) -> str:
     """Lưu data quality report và mẫu lỗi để giám sát ingestion health."""
     settings = context.resources.settings
     storage = context.resources.storage
 
     metrics = dict(validation_result["quality_metrics"])
-    invalid_records = list(validation_result["invalid_records"])
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    report_key = f"{settings.storage.cdc_state_prefix}/quality/quality_report_{ts}.json"
+    invalid_records = list(validation_result["invalid_records"]) # Phân tích lý do lỗi để cải thiện pipeline, đếm số lượng lỗi theo loại để ưu tiên fix những vấn đề phổ biến nhất. Lưu lại một số mẫu bản ghi lỗi để debug khi cần thiết.
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S") # Timestamp để version hóa báo cáo, dễ dàng truy vết theo thời gian và so sánh chất lượng giữa các lần chạy.
+    report_key = f"{settings.storage.cdc_state_prefix}/quality/quality_report_{ts}.json" # Lưu báo cáo vào prefix cdc_state/quality/ để dễ dàng truy cập và phân loại với các loại dữ liệu khác trong storage, đồng thời đảm bảo báo cáo được version hóa theo thời gian.
 
     storage.put_json(
         report_key,
@@ -104,16 +124,27 @@ def _count_invalid_reasons(invalid_records: list[dict[str, Any]]) -> dict[str, i
     return counts
 
 
-@op
-def op_clean_records(validation_result: dict[str, Any]) -> list[dict[str, Any]]:
-    """Chuẩn hóa kiểu dữ liệu và text cho bản ghi hợp lệ."""
-    return clean_records(validation_result["valid_records"])
+@op(required_resource_keys={"spark"})
+def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[str, Any]]:
+    """Chuẩn hóa kiểu dữ liệu và text phân tán bằng PySpark."""
+    spark = context.resources.spark
+    records = validation_result["valid_records"]
+    if not records: return []
+    
+    df = spark.createDataFrame(records)
+    cleaned_df = clean_records(df)
+    return [row.asDict() for row in cleaned_df.collect()]
 
 
-@op
-def op_transform_silver(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Transform validated records sang silver schema."""
-    return transform_for_silver(records)
+@op(required_resource_keys={"spark"})
+def op_transform_silver(context, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Transform sang silver schema bằng PySpark DataFrame."""
+    spark = context.resources.spark
+    if not records: return []
+    
+    df = spark.createDataFrame(records)
+    silver_df = transform_for_silver(df)
+    return [row.asDict() for row in silver_df.collect()]
 
 
 @op(required_resource_keys={"settings", "spark"})
@@ -125,7 +156,7 @@ def op_write_silver_delta(context, records: list[dict[str, Any]]) -> str:
 
     spark = context.resources.spark
     settings = context.resources.settings
-    target_path = _delta_path(settings.storage.silver_prefix)
+    target_path = _delta_path(settings.storage.silver_prefix, settings)
 
     df = spark.createDataFrame(records)
     upsert_silver(spark, df, target_path)
@@ -133,10 +164,15 @@ def op_write_silver_delta(context, records: list[dict[str, Any]]) -> str:
     return target_path
 
 
-@op
-def op_transform_gold(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Tạo analytics-ready aggregates cho gold layer."""
-    return transform_for_gold(records)
+@op(required_resource_keys={"spark"})
+def op_transform_gold(context, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Tạo analytics-ready aggregates cho gold layer phân tán bằng PySpark."""
+    spark = context.resources.spark
+    if not records: return []
+    
+    df = spark.createDataFrame(records)
+    gold_df = transform_for_gold(df)
+    return [row.asDict() for row in gold_df.collect()]
 
 
 @op(required_resource_keys={"settings", "spark"})
@@ -148,7 +184,7 @@ def op_write_gold_delta(context, records: list[dict[str, Any]]) -> str:
 
     spark = context.resources.spark
     settings = context.resources.settings
-    target_path = _delta_path(settings.storage.gold_prefix)
+    target_path = _delta_path(settings.storage.gold_prefix, settings)
 
     df = spark.createDataFrame(records)
     overwrite_gold(spark, df, target_path)

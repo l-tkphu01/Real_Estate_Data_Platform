@@ -1,148 +1,62 @@
-"""Contract transformation cho analytics-ready schema."""
+"""Contract transformation cho analytics-ready schema sử dụng PySpark DataFrames."""
 
-from datetime import datetime, timezone
-from statistics import median
-from typing import Any
-
-
-def _price_segment(price: float) -> str:
-    if price < 4_000_000_000:
-        return "affordable"
-    if price < 8_000_000_000:
-        return "mid"
-    if price < 12_000_000_000:
-        return "upper_mid"
-    return "luxury"
+from pyspark.sql import DataFrame
+import pyspark.sql.functions as F
 
 
-def _area_segment(area_sqm: float) -> str:
-    if area_sqm < 50:
-        return "compact"
-    if area_sqm < 90:
-        return "standard"
-    if area_sqm < 130:
-        return "spacious"
-    return "villa_like"
+def transform_for_silver(df: DataFrame) -> DataFrame:
+    """Ánh xạ cleaned DataFrame (Bronze) sang silver layer schema với Feature Engineering."""
+    
+    # Group theo phân khúc giá
+    price_segment_expr = F.when(F.col("price") < 4_000_000_000, "affordable") \
+                          .when(F.col("price") < 8_000_000_000, "mid") \
+                          .when(F.col("price") < 12_000_000_000, "upper_mid") \
+                          .otherwise("luxury")
+                          
+    # Group theo phân khúc diện tích                   
+    area_segment_expr = F.when(F.col("area_sqm") < 50, "compact") \
+                         .when(F.col("area_sqm") < 90, "standard") \
+                         .when(F.col("area_sqm") < 130, "spacious") \
+                         .otherwise("villa_like")
+
+    now_utc = F.current_timestamp()
+    
+    silver_df = df \
+        .withColumn("price_billion_vnd", F.round(F.col("price") / 1_000_000_000, 3)) \
+        .withColumn("price_per_sqm", F.round(F.col("price") / F.col("area_sqm"), 2)) \
+        .withColumn("price_segment", price_segment_expr) \
+        .withColumn("area_segment", area_segment_expr) \
+        .withColumn("_posted_at_raw", F.regexp_replace(F.col("posted_at"), "Z$", "+00:00")) \
+        .withColumn("posted_dt", F.to_timestamp(F.col("_posted_at_raw"))) \
+        .withColumn("posted_date", F.to_date(F.col("posted_dt")).cast("string")) \
+        .withColumn("listing_age_days", F.greatest(F.lit(0), F.datediff(now_utc, F.col("posted_dt")))) \
+        .withColumn("ingested_at", F.date_format(now_utc, "yyyy-MM-dd'T'HH:mm:ss")) \
+        .drop("posted_dt", "_posted_at_raw")
+
+    return silver_df
 
 
-def _percentile(values: list[float], p: float) -> float:
-    if not values:
-        return 0.0
-    sorted_values = sorted(values)
-    idx = max(0, min(len(sorted_values) - 1, int(round((len(sorted_values) - 1) * p))))
-    return sorted_values[idx]
+def transform_for_gold(df: DataFrame) -> DataFrame:
+    """Tổng hợp phân tích Group By (Silver -> Gold) bằng PySpark Distributed Grouping."""
+    
+    snapshot_at = F.current_timestamp()
 
+    # Nhóm dữ liệu Group By và Aggregate
+    gold_df = df.groupBy("city", "district").agg(
+        F.count("*").alias("listing_count"),
+        F.round(F.sum("price") / F.count("*"), 2).alias("avg_price"),
+        F.round(F.sum("area_sqm") / F.count("*"), 2).alias("avg_area_sqm"),
+        F.round(F.sum("price_per_sqm") / F.count("*"), 2).alias("avg_price_per_sqm"),
+        F.round(F.expr("percentile_approx(price, 0.5)"), 2).alias("median_price"),
+        F.round(F.expr("percentile_approx(price, 0.9)"), 2).alias("p90_price"),
+        F.round(F.expr("percentile_approx(price_per_sqm, 0.9)"), 2).alias("p90_price_per_sqm"),
+        F.round(F.max("price"), 2).alias("max_price"),
+        F.round(F.min("price"), 2).alias("min_price"),
+        F.round(F.sum("listing_age_days") / F.count("*"), 2).alias("avg_listing_age_days"),
+        F.round(
+            F.sum(F.when(F.col("price_segment") == "luxury", 1).otherwise(0)) / F.count("*"), 
+            4
+        ).alias("luxury_listing_ratio"),
+    ).withColumn("snapshot_at", F.date_format(snapshot_at, "yyyy-MM-dd'T'HH:mm:ss"))
 
-def _parse_timestamp(value: str, fallback: datetime) -> datetime:
-    text = value.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
-
-    try:
-        dt = datetime.fromisoformat(text)
-    except ValueError:
-        return fallback
-
-    if dt.tzinfo is None:
-        return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
-
-
-def transform_for_silver(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Ánh xạ cleaned records sang silver layer schema."""
-    silver_records: list[dict[str, Any]] = []
-    now_utc = datetime.now(timezone.utc)
-    now_utc_naive = now_utc.replace(tzinfo=None)
-    for record in records:
-        area_sqm = float(record["area_sqm"])
-        price = float(record["price"])
-        posted_at = str(record["posted_at"])
-        posted_dt = _parse_timestamp(posted_at, fallback=now_utc_naive)
-        posted_date = posted_dt.date().isoformat()
-        age_days = max(0, int((now_utc_naive - posted_dt).days))
-
-        silver_records.append(
-            {
-                "property_id": str(record["property_id"]),
-                "title": str(record.get("title", "")),
-                "city": str(record["city"]),
-                "district": str(record["district"]),
-                "price": price,
-                "price_billion_vnd": round(price / 1_000_000_000, 3),
-                "area_sqm": area_sqm,
-                "bedrooms": int(record["bedrooms"]),
-                "price_per_sqm": round(price / area_sqm, 2),
-                "price_segment": _price_segment(price),
-                "area_segment": _area_segment(area_sqm),
-                "listing_age_days": age_days,
-                "posted_at": posted_at,
-                "posted_date": posted_date,
-                "ingested_at": now_utc.isoformat(timespec="seconds"),
-            }
-        )
-    return silver_records
-
-
-def transform_for_gold(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Tổng hợp silver records thành BI-ready gold datasets."""
-    grouped: dict[tuple[str, str], dict[str, Any]] = {}
-    for record in records:
-        key = (str(record["city"]), str(record["district"]))
-        if key not in grouped:
-            grouped[key] = {
-                "city": key[0],
-                "district": key[1],
-                "listing_count": 0,
-                "sum_price": 0.0,
-                "sum_area_sqm": 0.0,
-                "sum_price_per_sqm": 0.0,
-                "sum_listing_age_days": 0,
-                "max_price": 0.0,
-                "min_price": float("inf"),
-                "prices": [],
-                "prices_per_sqm": [],
-                "luxury_count": 0,
-            }
-
-        price = float(record["price"])
-        area_sqm = float(record["area_sqm"])
-        price_per_sqm = float(record["price_per_sqm"])
-        listing_age_days = int(record.get("listing_age_days", 0))
-        bucket = grouped[key]
-
-        bucket["listing_count"] += 1
-        bucket["sum_price"] += price
-        bucket["sum_area_sqm"] += area_sqm
-        bucket["sum_price_per_sqm"] += price_per_sqm
-        bucket["sum_listing_age_days"] += listing_age_days
-        bucket["max_price"] = max(bucket["max_price"], price)
-        bucket["min_price"] = min(bucket["min_price"], price)
-        bucket["prices"].append(price)
-        bucket["prices_per_sqm"].append(price_per_sqm)
-        if str(record.get("price_segment", "")) == "luxury":
-            bucket["luxury_count"] += 1
-
-    snapshot_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    gold_records: list[dict[str, Any]] = []
-    for value in grouped.values():
-        count = value["listing_count"]
-        gold_records.append(
-            {
-                "city": value["city"],
-                "district": value["district"],
-                "listing_count": count,
-                "avg_price": round(value["sum_price"] / count, 2),
-                "avg_area_sqm": round(value["sum_area_sqm"] / count, 2),
-                "avg_price_per_sqm": round(value["sum_price_per_sqm"] / count, 2),
-                "median_price": round(median(value["prices"]), 2),
-                "p90_price": round(_percentile(value["prices"], 0.9), 2),
-                "p90_price_per_sqm": round(_percentile(value["prices_per_sqm"], 0.9), 2),
-                "max_price": round(value["max_price"], 2),
-                "min_price": round(value["min_price"], 2),
-                "avg_listing_age_days": round(value["sum_listing_age_days"] / count, 2),
-                "luxury_listing_ratio": round(value["luxury_count"] / count, 4),
-                "snapshot_at": snapshot_at,
-            }
-        )
-
-    return sorted(gold_records, key=lambda item: (item["city"], item["district"]))
+    return gold_df

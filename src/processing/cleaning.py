@@ -1,59 +1,36 @@
-"""Contract cleaning để xử lý nulls, text normalization và typing."""
+"""Contract cleaning để xử lý nulls, text normalization và typing bằng PySpark."""
 
-from datetime import datetime, timezone
-from typing import Any
-
-
-def _normalize_space(value: str) -> str:
-    return " ".join(value.split())
+from pyspark.sql import DataFrame, Window
+import pyspark.sql.functions as F
 
 
-def _parse_timestamp(value: str) -> datetime:
-    text = value.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
+def clean_records(df: DataFrame) -> DataFrame:
+    """Clean và chuẩn hóa records trước khi nạp vào curated layers bằng song song PySpark."""
+    
+    # 1. Text normalization: Xóa khoảng trắng thừa
+    # 2. Xử lý TimeZone: Chuyển chuỗi Z sang UTC Timestamp
+    clean_df = df \
+        .withColumn("title", F.trim(F.regexp_replace(F.col("title"), r'\s+', ' '))) \
+        .withColumn("city", F.trim(F.regexp_replace(F.col("city"), r'\s+', ' '))) \
+        .withColumn("district", F.trim(F.regexp_replace(F.col("district"), r'\s+', ' '))) \
+        .withColumn("_posted_at_raw", 
+                    F.regexp_replace(F.trim(F.col("posted_at")), "Z$", "+00:00")) \
+        .withColumn("_posted_at_dt", F.to_timestamp(F.col("_posted_at_raw")))
 
-    try:
-        dt = datetime.fromisoformat(text)
-    except ValueError:
-        return datetime.min
+    # 3. Chuẩn hóa kiểu dữ liệu
+    clean_df = clean_df \
+        .withColumn("price", F.round(F.col("price").cast("double"), 2)) \
+        .withColumn("area_sqm", F.round(F.col("area_sqm").cast("double"), 2)) \
+        .withColumn("bedrooms", F.greatest(F.lit(0), F.col("bedrooms").cast("int")))
 
-    if dt.tzinfo is None:
-        return dt
-    return dt.astimezone(timezone.utc).replace(tzinfo=None)
-
-
-def clean_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Clean và chuẩn hóa records trước khi nạp vào curated layers."""
-    # Giữ bản ghi mới nhất theo property_id để giảm trùng dữ liệu.
-    dedup: dict[str, dict[str, Any]] = {}
-    for record in records:
-        property_id = str(record["property_id"]).strip()
-        posted_at_raw = str(record["posted_at"]).strip()
-        posted_at_dt = _parse_timestamp(posted_at_raw)
-
-        current = dedup.get(property_id)
-        if current is not None:
-            current_dt = current.get("_posted_at_dt", datetime.min)
-            if posted_at_dt <= current_dt:
-                continue
-
-        dedup[property_id] = {
-            "property_id": property_id,
-            "title": _normalize_space(str(record.get("title", "")).strip()),
-            "city": _normalize_space(str(record["city"]).strip()),
-            "district": _normalize_space(str(record["district"]).strip()),
-            "price": round(float(record["price"]), 2),
-            "area_sqm": round(float(record["area_sqm"]), 2),
-            "bedrooms": max(0, int(record["bedrooms"])),
-            "posted_at": posted_at_raw,
-            "_posted_at_dt": posted_at_dt,
-        }
-
-    cleaned: list[dict[str, Any]] = []
-    for item in dedup.values():
-        item.pop("_posted_at_dt", None)
-        cleaned.append(item)
-
-    cleaned.sort(key=lambda row: row["posted_at"], reverse=True)
-    return cleaned
+    # 4. Giữ bản ghi mới nhất theo property_id để giảm trùng lặp (Deduplication)
+    # Tương tự việc dùng dictionary trong Python nhưng chạy bằng Distributed Window Function
+    window_spec = Window.partitionBy("property_id") \
+                        .orderBy(F.col("_posted_at_dt").desc_nulls_last())
+    
+    dedup_df = clean_df \
+        .withColumn("_rn", F.row_number().over(window_spec)) \
+        .filter(F.col("_rn") == 1) \
+        .drop("_rn", "_posted_at_dt", "_posted_at_raw")
+        
+    return dedup_df

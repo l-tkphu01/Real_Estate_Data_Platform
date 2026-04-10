@@ -21,9 +21,13 @@ def op_fetch_source_data(context) -> list[dict]:
     raw_data = fetch_raw_records(settings)
     
     # 2. Làm sạch / Ánh xạ sang Schema chuẩn
-    normalized_data = [normalize_raw_record(row) for row in raw_data]
+    normalized_data = []
+    for row in raw_data:
+        norm_row = normalize_raw_record(row)
+        if norm_row:  # Lọc bỏ rác (dict rỗng) bị văng ra từ Pydantic Validation
+            normalized_data.append(norm_row)
     
-    context.log.info(f"Đã chuẩn hóa thành công {len(normalized_data)} bản ghi.")
+    context.log.info(f"Đã chuẩn hóa thành công {len(normalized_data)} bản ghi chuẩn.")
     return normalized_data
 
 @op(required_resource_keys={"storage", "settings"})
