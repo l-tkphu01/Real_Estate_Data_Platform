@@ -93,7 +93,7 @@ class Settings:
         """Trả về True khi chạy với Azure Cloud thay vì Azurite."""
         return not bool(self.storage.azure_endpoint)
 
-    def azure_connection_string(self) -> str:
+    def azure_connection_string(self) -> str: # TODO: Có thể refactor thành AzureConfig class riêng nếu có nhiều logic liên quan đến Azure hơn trong tương lai
         """Ghi chuỗi kết nối an toàn."""
         if self.storage.azure_endpoint:
             return f"DefaultEndpointsProtocol=http;AccountName={self.storage.azure_storage_account};AccountKey={self.storage.azure_storage_key};BlobEndpoint={self.storage.azure_endpoint};"

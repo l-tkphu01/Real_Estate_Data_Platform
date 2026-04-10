@@ -8,7 +8,7 @@ Thư mục này chứa các cấu hình cho orchestration, schedule và run sett
 - `local.azure.yaml`: override cho local chạy với Azure ADLS Gen2.
 - `run_config_local.yaml`: blueprint run config cho Dagster local.
 - `schedules.yaml`: blueprint cron schedules.
-- `alerts.yaml`: blueprint alerts/SLA.
+- `alerts.yaml`: blueprint alerts/SLA (Service Level Agreement).
 
 ## Thứ tự ưu tiên khi nạp config
 1. `base.yaml`

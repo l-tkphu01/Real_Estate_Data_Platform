@@ -2,49 +2,119 @@
 
 ## 1) Mục tiêu dự án
 
-Dự án này hướng tới một pipeline dữ liệu bất động sản hoàn chỉnh theo chuỗi:
+Dự án này xây dựng một pipeline dữ liệu bất động sản theo chuỗi:
 
 Ingestion -> Raw Storage -> CDC -> Processing -> Lakehouse -> Analytics -> Visualization
 
 Mục tiêu thiết kế:
-- Định hướng production nhưng vẫn thân thiện với người mới.
-- Thiết kế mô-đun (modular), idempotent, có khả năng mở rộng theo khối lượng dữ liệu.
-- Chạy local bằng Azurite (Azure Storage Emulator), sau đó chuyển sang Azure Data Lake Storage Gen2 (ADLS Gen2) mà không đổi logic cốt lõi.
+- Hướng production nhưng vẫn đủ nhẹ để chạy local trên máy cá nhân.
+- Tách lớp rõ ràng, dễ kiểm thử, dễ thay storage backend từ Azurite sang ADLS Gen2.
+- Ưu tiên idempotency, replay-safe và cấu hình hóa bằng YAML/.env.
 
-## 2) Trạng thái hiện tại (giai đoạn thiết kế, chưa code logic)
+## 2) Trạng thái hiện tại
 
-Theo yêu cầu hiện tại, repository đang ở giai đoạn blueprint:
-- Đã có đầy đủ cấu trúc thư mục.
-- Các file Python là skeleton, mô tả rõ chức năng từng file/hàm.
-- Chưa triển khai business logic để bạn có thể build tuần tự từ đầu.
+Repo hiện đã chuyển sang stack Azure/Azurite + PySpark + Delta Lake.
 
-## 3) Đánh giá trước khi build: các điểm cần tối ưu
+Đã hoàn thành và kiểm chứng:
+- `src/config.py` đọc cấu hình theo profile YAML và environment variables.
+- `src/storage/azure_client.py` kết nối được Azurite, tự tạo container, ghi và đọc blob.
+- Smoke test `scripts/test_azure_connection.py` chạy thành công end-to-end với container `real-estate-platform`.
+- `pipelines/config/local.azurite.yaml` và `.env.example` đã trỏ đúng `127.0.0.1` cho local development.
 
-Xem chi tiết tại file `docs/pre_build_assessment.md`.
+Đang ở giai đoạn tiếp theo:
+- Nối ingestion thật từ scraper vào storage abstraction.
+- Hoàn thiện Dagster resources, ops và job definitions để chạy pipeline thay vì chỉ smoke test.
 
-Tóm tắt nhanh:
-- Ingestion: cần retry, timeout, phân loại lỗi, kiểm tra contract dữ liệu nguồn.
-- Storage: cần abstraction Azure Blob/ADLS Gen2 để tránh hardcode Azurite.
-- CDC: bắt buộc lưu fingerprint state để tránh full reload.
-- Processing: cần validation, tách record lỗi sang vùng quarantine. Xử lý chính bằng PySpark (thay vì Pandas) để tránh sập RAM.
-- Lakehouse: cần Delta merge/upsert bằng delta-spark để bảo đảm ACID và replay-safe.
-- Orchestration: cần logging có cấu trúc, theo dõi SLA, retry chính sách rõ ràng.
+## 3) Sơ đồ toàn bộ luồng hoạt động
 
-## 4) Kiến trúc tổng thể
+```mermaid
+flowchart TB
+    classDef config fill:#e8f1ff,stroke:#3b82f6,stroke-width:1px,color:#111827
+    classDef compute fill:#ecfeff,stroke:#06b6d4,stroke-width:1px,color:#111827
+    classDef storage fill:#ecfdf5,stroke:#10b981,stroke-width:1px,color:#111827
+    classDef process fill:#fff7ed,stroke:#f97316,stroke-width:1px,color:#111827
+    classDef serve fill:#f5f3ff,stroke:#8b5cf6,stroke-width:1px,color:#111827
 
-### 4.1 Luồng nghiệp vụ
+    subgraph S1["1. Cấu hình"]
+        A[".env + YAML\nbase.yaml + local.azurite.yaml"] --> B["src.config.load_settings()"]
+        B --> C["Settings\nRuntime + Storage + Ingestion"]
+    end
+
+    subgraph S2["2. Điều phối Dagster"]
+        C --> D["pipelines.resources\nsettings + storage + spark"]
+        D --> E["pipelines.ops.ingestion_ops\nop_fetch_source_data"]
+        E --> F["pipelines.ops.ingestion_ops\nop_store_raw_snapshot"]
+        F --> G["pipelines.jobs\nbuild_ingestion_job"]
+        G --> H["pipelines.definitions\nDagster UI / Run Coordinator"]
+    end
+
+    subgraph S3["3. Ingestion"]
+        I["src.scraper.client\nfetch_raw_records()"] --> J["src.scraper.normalizer\nnormalize_raw_record()"]
+        J --> K["Canonical property records"]
+    end
+
+    subgraph S4["4. Storage tầng nền"]
+        L["src.storage.azure_client\nAzureStorageClient"] --> M["Azurite local\nContainer: real-estate-platform"]
+        M --> N["Raw JSON snapshots\nraw/smoke_test/ ..."]
+    end
+
+    subgraph S5["5. Xử lý dữ liệu"]
+        N --> O["src.cdc\nfingerprint + state_store"]
+        O --> P["src.processing\nvalidation + cleaning + transform"]
+        P --> Q["src.lakehouse\ndelta_writer"]
+        Q --> R["Delta Lake zones\nBronze / Silver / Gold"]
+    end
+
+    subgraph S6["6. Analytics và hiển thị"]
+        R --> S["src.analytics\naggregations"]
+        S --> T["Superset dashboards\nCharts + filters + KPIs"]
+        S --> U["Notebooks / Papermill\nAd-hoc analysis"]
+    end
+
+    C --> I
+    D --> L
+    E --> I
+    F --> L
+
+    class A,B,C config
+    class D,E,F,G,H,I,J,K compute
+    class L,M,N storage
+    class O,P,Q,R process
+    class S,T,U serve
+```
+
+### Ý nghĩa sơ đồ
+
+- Khối 1 cho thấy toàn bộ hệ thống bắt đầu từ `.env` và YAML.
+- Khối 2 cho thấy Dagster nhận settings, gắn resources và điều phối ingestion job.
+- Khối 3 cho thấy scraper lấy dữ liệu nguồn rồi chuẩn hóa về schema chung.
+- Khối 4 cho thấy storage abstraction chỉ nói chuyện với Azurite hoặc ADLS.
+- Khối 5 cho thấy dữ liệu raw đi qua CDC, processing và Delta Lake để sinh bronze/silver/gold.
+- Khối 6 cho thấy dữ liệu phục vụ analytics, dashboard Superset và notebook phân tích.
+
+## 4) Kết quả cuối cùng đã xác nhận
+
+Milestone hiện tại đã được xác nhận bằng smoke test:
+- Tạo container `real-estate-platform` thành công.
+- Ghi blob `raw/smoke_test/test_file.json` thành công.
+- Đọc lại danh sách blob bằng `list_keys()` thành công.
+
+Nghĩa là tầng nền của hệ thống đã sẵn sàng để nối ingestion thật.
+
+## 5) Kiến trúc tổng thể
+
+### 5.1 Luồng nghiệp vụ
 
 1. Ingestion
-- Lấy dữ liệu từ API/web.
-- Có retry + xử lý lỗi cơ bản.
+- Lấy dữ liệu từ API hoặc nguồn scrape.
+- Có retry, timeout và xử lý lỗi.
 
 2. Raw Storage
-- Lưu payload gốc (JSON/Parquet) vào Azurite/ADLS Gen2.
+- Lưu payload gốc vào Azurite khi chạy local, sau đó chuyển sang ADLS Gen2.
 - Lưu theo snapshot bất biến để audit và replay.
 
 3. CDC
-- Tính fingerprint (ví dụ: property_id + price + listed_at).
-- Chỉ giữ record mới hoặc thay đổi.
+- Tính fingerprint để phát hiện record mới hoặc record thay đổi.
 
 4. Processing
 - Validate dữ liệu bắt buộc.
@@ -56,23 +126,24 @@ Tóm tắt nhanh:
 - Tạo gold dataset phục vụ BI.
 
 6. Orchestration
-- Dùng Dagster để định nghĩa jobs/ops và dependency.
-- Gắn logging, retry, và quan sát run metadata.
+- Dùng Dagster để định nghĩa jobs, ops và dependency.
+- Gắn logging, retry và metadata cho từng run.
 
 7. Analytics
 - Tạo các bộ dữ liệu tổng hợp cho BI.
-- Có thể chạy notebook qua Papermill (tùy chọn).
+- Có thể chạy notebook qua Papermill khi cần.
 
 8. Visualization
-- Dùng Superset làm dashboard giá và so sánh khu vực.
+- Dùng Superset để xây dashboard giá, khu vực và xu hướng.
 
-### 4.2 Stack local
+### 5.2 Stack local
 - Azurite: object storage giả lập Azure Blob Storage.
-- Dagster: orchestration + monitoring, khởi tạo PySpark Session.
-- Apache Spark (PySpark): xử lý dữ liệu lớn in-memory & distributed, có config giới hạn RAM (e.g. 2GB) khi chạy local.
+- Dagster: orchestration + monitoring.
+- Apache Spark (PySpark): xử lý dữ liệu lớn và giới hạn RAM khi chạy local.
+- Delta Lake: lưu trữ ACID cho bronze/silver/gold.
 - Superset: BI và dashboard.
 
-## 5) Cấu trúc thư mục dự án
+## 6) Cấu trúc thư mục dự án
 
 ```text
 Real Estate Data Platform – End-to-End Data Pipeline/
@@ -138,39 +209,39 @@ Real Estate Data Platform – End-to-End Data Pipeline/
         `-- aggregations.py
 ```
 
-## 6) Vai trò từng file Python (để nắm luồng)
+## 7) Vai trò từng file Python (để nắm luồng)
 
-### 6.1 Nhóm core
+### 7.1 Nhóm core
 - `src/config.py`: contract cấu hình môi trường.
 - `src/logging_config.py`: chuẩn hóa logging cho toàn bộ pipeline.
 - `src/models/property.py`: schema chuẩn của record bất động sản.
 
-### 6.2 Nhóm ingestion + raw
+### 7.2 Nhóm ingestion + raw
 - `src/scraper/client.py`: lấy dữ liệu nguồn, retry, xử lý lỗi.
 - `src/scraper/normalizer.py`: chuẩn hóa payload về schema chung.
 - `src/storage/azure_client.py`: abstraction đọc/ghi thư mục (Azurite hoặc ADLS).
 - `src/storage/raw_storage.py`: tạo key partition và lưu snapshot raw.
 
-### 6.3 Nhóm CDC
+### 7.3 Nhóm CDC
 - `src/cdc/fingerprint.py`: tính fingerprint, phát hiện thay đổi.
 - `src/cdc/state_store.py`: lưu/đọc state fingerprint giữa các lần chạy.
 
-### 6.4 Nhóm processing + lakehouse
+### 7.4 Nhóm processing + lakehouse
 - `src/processing/validation.py`: kiểm tra chất lượng dữ liệu.
 - `src/processing/cleaning.py`: làm sạch và chuẩn hóa giá trị.
 - `src/processing/transform.py`: tạo dữ liệu silver/gold.
 - `src/lakehouse/delta_writer.py`: ghi/upsert Delta Lake.
 
-### 6.5 Nhóm analytics
+### 7.5 Nhóm analytics
 - `src/analytics/aggregations.py`: tính toán dataset tổng hợp phục vụ BI.
 
-### 6.6 Nhóm orchestration
+### 7.6 Nhóm orchestration
 - `pipelines/resources.py`: khai báo resource dùng chung cho các op.
 - `pipelines/ops/*.py`: từng bước xử lý theo stage.
 - `pipelines/jobs.py`: ghép op thành pipeline jobs.
 - `pipelines/definitions.py`: entry point để Dagster load toàn bộ.
 
-## 7) Hướng dẫn triển khai từng bước từ đầu
+## 8) Hướng dẫn chạy nhanh local
 
 ### Bước 0 - Chuẩn bị môi trường
 
@@ -179,20 +250,20 @@ Yêu cầu:
 - Python 3.11
 - Git
 
+Đã kiểm chứng workflow local bằng conda env `real_estate_env`.
+
 Mục tiêu:
 - Máy local đủ công cụ để chạy stack.
 
 ### Bước 1 - Khởi tạo cấu hình
 
-1. Tạo file `.env` tAzurite local:
+1. Sao chép `.env.example` thành `.env`.
+2. Với Azurite local, giữ:
+- `APP_PROFILE=local.azurite`
+- `CONFIG_DIR=pipelines/config`
+- `AZURE_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1`
 - `AZURE_STORAGE_ACCOUNT=devstoreaccount1`
 - `AZURE_STORAGE_KEY=Eby8vdM02xNO...`
-- `AZURE_ENDPOINT=http://azurite:10000/devstoreaccount1`
-3. Chọn profile config-driven:
-- `APP_PROFILE=local.azurite` cho Azurite local.
-- `APP_PROFILE=local.azure` cho Azure Data LakeO local.
-- `APP_PROFILE=local.aws` cho AWS S3.
-- `CONFIG_DIR=pipelines/config` để chỉ thư mục profile.
 
 Definition of Done:
 - Tất cả biến bắt buộc đã có giá trị.
@@ -212,7 +283,19 @@ Kiểm tra:
 Definition of Done:
 - 3 service đều ở trạng thái healthy.
 
-### Bước 3 - Triển khai ingestion layer
+### Bước 3 - Kiểm tra storage tầng nền
+
+Chạy:
+```bash
+python scripts/test_azure_connection.py
+```
+
+Kết quả mong đợi:
+- Container `real-estate-platform` được tạo nếu chưa có.
+- Blob smoke test được ghi vào `raw/smoke_test/test_file.json`.
+- `list_keys()` đọc lại đúng blob vừa ghi.
+
+### Bước 4 - Triển khai ingestion layer
 
 Thực hiện tại:
 - `src/scraper/client.py`
@@ -228,7 +311,7 @@ Kiểm thử tối thiểu:
 - Lỗi mạng tạm thời vẫn retry đúng số lần.
 - Payload sai định dạng không làm sập pipeline.
 
-### Bước 4 - Triển khai CDC
+### Bước 5 - Triển khai CDC
 
 Thực hiện tại:
 - `src/cdc/fingerprint.py`
@@ -243,7 +326,7 @@ Kiểm thử tối thiểu:
 - Chạy lại cùng input không tạo dữ liệu mới.
 - Đổi `price` thì record được nhận diện updated.
 
-### Bước 5 - Triển khai processing + validation
+### Bước 6 - Triển khai processing + validation
 
 Thực hiện tại:
 - `src/processing/validation.py`
@@ -259,7 +342,7 @@ Bắt buộc có:
 Kiểm thử tối thiểu:
 - Cùng input chạy nhiều lần vẫn cho output giống nhau.
 
-### Bước 6 - Triển khai Delta lakehouse
+### Bước 7 - Triển khai Delta lakehouse
 
 Thực hiện tại:
 - `src/lakehouse/delta_writer.py`
@@ -272,7 +355,7 @@ Bắt buộc có:
 Kiểm thử tối thiểu:
 - Re-run cùng batch không tạo duplicate.
 
-### Bước 7 - Triển khai Dagster orchestration
+### Bước 8 - Triển khai Dagster orchestration
 
 Thực hiện tại:
 - `pipelines/resources.py`
@@ -289,7 +372,7 @@ Kiểm thử tối thiểu:
 - Trigger được một run thành công từ Dagster UI.
 - Có thể rerun an toàn.
 
-### Bước 8 - Triển khai analytics + notebooks (tùy chọn)
+### Bước 9 - Triển khai analytics + notebooks (tùy chọn)
 
 Thực hiện tại:
 - `src/analytics/aggregations.py`
@@ -299,14 +382,14 @@ Bắt buộc có:
 - Dataset xu hướng giá theo thời gian.
 - Dataset so sánh theo thành phố/quận.
 
-### Bước 9 - Xây dashboard Superset
+### Bước 10 - Xây dashboard Superset
 
 Bắt buộc có:
 - Dashboard xu hướng giá.
 - Dashboard so sánh khu vực.
 - Bộ lọc theo city, district, khoảng thời gian.
 
-### Bước 10 - Hardening trước production
+### Bước 11 - Hardening trước production
 
 Bắt buộc có:
 - Alert khi pipeline fail.
@@ -314,19 +397,19 @@ Bắt buộc có:
 - Data retention policy cho raw/bronze/silver/gold.
 - Theo dõi chi phí và hiệu năng.
 
-## 8) Cấu hình mẫu `.env`
+## 9) Cấu hình mẫu `.env`
 
 Lấy `.env.example` làm chuẩn.
 
 Với local Azurite:
 ```env
-AZURE_ENDPOINT=http://azurite:10000/devstoreaccount1
+AZURE_ENDPOINT=http://127.0.0.1:10000/devstoreaccount1
 AZURE_STORAGE_ACCOUNT=devstoreaccount1
 AZURE_STORAGE_KEY=Eby8vd...
 AZURE_CONTAINER=real-estate-platform
 ```
 
-## 9) Chuyển Azurite sang Azure Data Lake (không đổi core logic)
+## 10) Chuyển Azurite sang Azure Data Lake (không đổi core logic)
 
 Chỉ cần đổi biến môi trường:
 - Đặt `APP_PROFILE=local.azure`.
@@ -339,14 +422,14 @@ Nguyên tắc:
 - Toàn bộ module chỉ gọi qua interface storage abstraction.
 - Không hardcode endpoint ở nơi khác ngoài config.
 
-## 10) Lý do thiết kế (design decisions)
+## 11) Lý do thiết kế (design decisions)
 
 - Dùng CDC fingerprint để giảm chi phí, tránh duplicate.
 - Tách raw/bronze/silver/gold để dễ audit, replay, truy vết.
 - Dùng Dagster để quản trị dependency và quan sát vận hành.
 - Dùng Superset để dashboard nhanh, phù hợp bài toán BI.
 
-## 11) Hướng cải tiến tương lai
+## 12) Hướng cải tiến tương lai
 
 - Thêm contract testing cho API nguồn.
 - Thêm framework data quality (ví dụ Great Expectations).
@@ -354,7 +437,7 @@ Nguyên tắc:
 - Thêm lineage metadata (OpenLineage).
 - Thêm data catalog và ownership model.
 
-## 12) Bộ câu hỏi phỏng vấn mẫu
+## 13) Bộ câu hỏi phỏng vấn mẫu
 
 1. Vì sao cần raw immutable layer?
 - Để audit, replay và debug mà không mất dữ liệu gốc.
@@ -374,11 +457,10 @@ Nguyên tắc:
 6. Nếu source API thay đổi schema đột ngột thì xử lý sao?
 - Thêm validation và route bản ghi lỗi vào quarantine.
 
-## 13) Kế hoạch tiếp theo đề xuất
+## 14) Kế hoạch tiếp theo đề xuất
 
 Theo đúng thứ tự để hạn chế rủi ro:
-1. Hoàn thiện `src/config.py`, `pipelines/resources.py` (Mở SparkSession RAM nhỏ) và `src/storage/azure_client.py` trước.
-2. Hoàn thiện ingestion + raw snapshot.
-3. Hoàn thiện CDC + kiểm thử idempotency.
-4. Hoàn thiện processing/lakehouse.
-5. Nối vào Dagster jobs và Superset dashboards.
+1. Hoàn thiện ingestion thật từ scraper vào raw storage.
+2. Ghép `pipelines/resources.py`, `pipelines/jobs.py` và `pipelines/definitions.py` cho Dagster.
+3. Hoàn thiện CDC + processing + Delta Lake.
+4. Nối analytics và dashboard Superset.

@@ -21,3 +21,6 @@ deltalake==0.20.2
 # Optional notebook automation
 papermill==2.6.0
 jupyter==1.0.0
+
+# Testing
+pytest==8.1.1

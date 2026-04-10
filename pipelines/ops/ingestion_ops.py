@@ -6,14 +6,41 @@ Luồng kỳ vọng:
 3) ghi immutable raw snapshot
 """
 
+from dagster import op
+from datetime import datetime
 
-def op_fetch_source_data():
-    """Fetch records từ source với retry và error handling."""
+from src.scraper.client import fetch_raw_records
+from src.scraper.normalizer import normalize_raw_record
 
-    raise NotImplementedError("Implement in build phase")
+@op(required_resource_keys={"settings"})
+def op_fetch_source_data(context) -> list[dict]:
+    """Fetch records từ API (hoặc Mock Data) với retry logic."""
+    settings = context.resources.settings
+    
+    # 1. Cào dữ liệu theo định dạng gốc
+    raw_data = fetch_raw_records(settings)
+    
+    # 2. Làm sạch / Ánh xạ sang Schema chuẩn
+    normalized_data = [normalize_raw_record(row) for row in raw_data]
+    
+    context.log.info(f"Đã chuẩn hóa thành công {len(normalized_data)} bản ghi.")
+    return normalized_data
 
-
-def op_store_raw_snapshot():
-    """Lưu fetched records vào raw object storage."""
-
-    raise NotImplementedError("Implement in build phase")
+@op(required_resource_keys={"storage", "settings"})
+def op_store_raw_snapshot(context, data: list[dict]) -> str:
+    """Lưu trữ dữ liệu vào Zone RAW của Azurite (hoặc Azure Datalake)."""
+    settings = context.resources.settings
+    storage = context.resources.storage
+    
+    if not data:
+        context.log.warning("Không có dữ liệu nào để lưu.")
+        return "empty"
+        
+    # Tạo tên file (Blob Name) ví dụ: raw/real_estate_20260409_153022.json
+    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    blob_name = f"{settings.storage.raw_prefix}_{now_str}.json"
+    
+    storage.put_json(blob_name, data)
+    
+    context.log.info(f"✅ Upload thành công: {blob_name}")
+    return blob_name

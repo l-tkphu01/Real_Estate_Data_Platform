@@ -1,7 +1,9 @@
 """Entrypoint Dagster Definitions được load bởi workspace.yaml."""
 
+from dagster import Definitions
+from pipelines.jobs import ingestion_job, processing_job
 
-def build_definitions():
-    """Ghép jobs, schedules và resources thành Dagster Definitions."""
 
-    raise NotImplementedError("Implement in build phase")
+defs = Definitions(
+    jobs=[ingestion_job, processing_job],
+)
