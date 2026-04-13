@@ -15,7 +15,11 @@ AZURE_BLOB_API_VERSION = "2023-11-03"
 logger = logging.getLogger(__name__)
 
 class AzureStorageClient:
-    """Unified storage client interface cho Azure Data Lake / Azurite."""
+    """Unified storage client interface cho Azure Data Lake / Azurite.
+    
+    Optimized: Loại bỏ check Container exist lúc Init để tránh block IO Dagster và
+    tránh request dư thừa lên Azure gây tốn transaction cost. Tự tạo container khi upload lần đầu.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -24,24 +28,27 @@ class AzureStorageClient:
             api_version=AZURE_BLOB_API_VERSION,
         )
         self.container_client = self.blob_service_client.get_container_client(self.settings.azure_container)
-        self._ensure_container_exists()
+        self._container_checked = False
 
-    def _ensure_container_exists(self) -> None:
-        """Đảm bảo container đã tồn tại trên thư mục đích."""
+    def _ensure_container_dynamic(self) -> None:
+        """Dynamic container creation - lazy init khi write data thực tế."""
+        if self._container_checked:
+            return
         try:
-            if not self.container_client.exists():
+            if not self.container_client.exists(): # Kiểm tra đã có container chưa (thư mục gốc trong Blob Storage)
                 self.container_client.create_container()
-                logger.info(f"Container '{self.settings.azure_container}' created successfully.")
-        except ResourceExistsError:
-            pass
+                logger.info(f"🚀 Container '{self.settings.azure_container}' created successfully.")
         except Exception as e:
-            logger.warning(f"Could not create container or check its existence: {e}")
+            logger.warning(f"Could not create container: {e}")
+        finally:
+            self._container_checked = True
 
     def get_connection_string(self) -> str:
         return self.settings.azure_connection_string()
 
     def put_json(self, key: str, payload: Any) -> None:
         """Ghi dữ liệu dưới định dạng JSON vào Azurite/Azure Blob."""
+        self._ensure_container_dynamic() # Xử lý dynamic creation
         blob_client = self.container_client.get_blob_client(key)
         json_data = json.dumps(payload, ensure_ascii=False)
         blob_client.upload_blob(json_data, overwrite=True)

@@ -10,8 +10,17 @@ from fake_useragent import UserAgent
 from src.config import Settings
 
 logger = logging.getLogger(__name__)
-ua = UserAgent()
+# Tối ưu: Thêm fallback an toàn cho FakeUserAgent để tránh block/crash khởi động IO lúc rớt mạng (ClientError, TimeoutError) hoặc API của FakeUserAgent bị block (HTTPError 403, 429). Fallback này sẽ đảm bảo rằng scraper vẫn hoạt động với User-Agent mặc định nếu không thể lấy được User-Agent ngẫu nhiên từ FakeUserAgent, giúp tăng tính ổn định và tránh crash ngay từ đầu. 
+ua = UserAgent(fallback='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
+# --- Đẩy @retry sâu xuống cấp độ Async HTTP Call ---
+# Giúp nếu sập mạng ở trang X thì retry đúng Async đó, loop event không bị vỡ / memory leak
+@retry(
+    stop=stop_after_attempt(3), # Default retry, config sẽ override ngầm sau nếu cần
+    wait=wait_exponential(multiplier=2, min=2, max=10),
+    retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
+    reraise=True # Reraise exception sau khi hết retry để Dagster bắt và log rõ ràng thay vì silent fail
+)
 async def _fetch_page_async(session: aiohttp.ClientSession, url: str, params: dict, headers: dict, timeout: int = 30) -> list[dict[str, Any]]: # Đối tượng phiên làm việc HTTP của aiohttp, URL endpoint, tham số truy vấn và header (chứa User-Agent) để gọi API. (Quản lí kết nối, cookie, timeout, tái sử dụng socket hiệu quả hơn so với requests đồng bộ, Truyền vào để khỏi phải tạo lại mỗi lần gọi API)
     """Gọi 1 trang API bất đồng bộ với aiohttp."""
     async with session.get(url, params=params, headers=headers, timeout=aiohttp.ClientTimeout(total=timeout)) as response: # Gọi xong nó sẽ đóng đúng cách
@@ -211,8 +220,17 @@ def fetch_raw_records(settings: Settings) -> list[dict[str, Any]]:
     @retry(
         stop=stop_after_attempt(settings.ingestion.ingestion_max_retries),
         wait=wait_exponential(multiplier=settings.ingestion.ingestion_backoff_seconds, min=2, max=10),
+        retry=retry_if_exception_type((aiohttp.ClientError, asyncio.TimeoutError)),
         reraise=True
     )
+    async def _fetch_page_async_override(session, url, params, headers, timeout) -> list[dict[str, Any]]:
+        # Override decorator bằng config động từ settings
+        return await _fetch_page_async.retry_with(
+            stop=stop_after_attempt(settings.ingestion.ingestion_max_retries),
+            wait=wait_exponential(multiplier=settings.ingestion.ingestion_backoff_seconds, min=2, max=10)
+        )(session, url, params, headers, timeout)
+    
+    # Chúng ta bypass _fetch wrapper dính retry ở đây để tránh lỗi loop.run
     def _fetch() -> list[dict[str, Any]]:
         logger.info(
             f"🚀 Bắt đầu cào dữ liệu từ: {url} "

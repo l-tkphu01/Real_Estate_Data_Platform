@@ -31,6 +31,10 @@ class RuntimeSettings:
     dagster_home: str # Đường dẫn tuyệt đối hoặc tương đối (từ PROJECT_ROOT) đến thư mục DAGSTER_HOME để lưu trữ logs, run history, v.v.
     superset_secret_key: str # Chuỗi bí mật dùng cho Superset session và CSRF protection (có thể random một giá trị đủ dài khi chạy local)
 
+    def __post_init__(self):
+        if not self.profile:
+            raise ValueError("profile không được để trống")
+
 
 @dataclass(frozen=True, slots=True)
 class LoggingSettings:
@@ -53,6 +57,14 @@ class StorageSettings:
     silver_prefix: str
     gold_prefix: str
     cdc_state_prefix: str
+    
+    def __post_init__(self):
+        # Validate bằng các hàm đã có bên dưới để đảm bảo không bị dead code
+        object.__setattr__(self, 'raw_prefix', _validate_path_prefix(self.raw_prefix, 'raw_prefix'))
+        object.__setattr__(self, 'bronze_prefix', _validate_path_prefix(self.bronze_prefix, 'bronze_prefix'))
+        object.__setattr__(self, 'silver_prefix', _validate_path_prefix(self.silver_prefix, 'silver_prefix'))
+        object.__setattr__(self, 'gold_prefix', _validate_path_prefix(self.gold_prefix, 'gold_prefix'))
+        object.__setattr__(self, 'cdc_state_prefix', _validate_path_prefix(self.cdc_state_prefix, 'cdc_state_prefix'))
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +81,14 @@ class IngestionSettings:
     semaphore_size: int # Số request đồng thời tối đa (anti-ban), default 3 để an toàn khi scale
     categories: list[int] # Danh sách category IDs cần cào (VD: [1000, 1001, 1002]), default [1000] (chỉ bất động sán)
     pages_per_category: int # Số trang cào/category (nếu multi-category), default = max_pages / len(categories)
+
+    def __post_init__(self):
+        object.__setattr__(self, 'request_timeout_seconds', _validate_timeout(self.request_timeout_seconds))
+        object.__setattr__(self, 'ingestion_max_retries', _validate_retry_count(self.ingestion_max_retries))
+        object.__setattr__(self, 'ingestion_backoff_seconds', _validate_backoff(self.ingestion_backoff_seconds))
+        object.__setattr__(self, 'max_pages', _validate_max_pages(self.max_pages))
+        object.__setattr__(self, 'pages_per_batch', _validate_pages_per_batch(self.pages_per_batch))
+        object.__setattr__(self, 'batch_delay_seconds', _validate_batch_delay(self.batch_delay_seconds))
 
 
 @dataclass(frozen=True, slots=True)

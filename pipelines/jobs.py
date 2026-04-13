@@ -1,7 +1,7 @@
 """Contract Dagster jobs cho end-to-end real estate pipeline."""
 
 from dagster import job, DagsterInvariantViolationError
-from pipelines.ops.ingestion_ops import op_fetch_source_data, op_store_raw_snapshot
+from pipelines.ops.ingestion_ops import op_ingest_and_store_raw
 from pipelines.ops.processing_ops import (
     op_clean_records,
     op_load_latest_raw_records,
@@ -54,11 +54,9 @@ def ingestion_job():
     - Network latency buffer
     """
     
-    # Bước 1: Fetch
-    data = op_fetch_source_data()
-    
-    # Bước 2: Đẩy vào Raw Azurite
-    op_store_raw_snapshot(data)
+    # Bước 1 & 2 được gộp chung để chống OOM RAM Dagster (OOM Prevention)
+    # Orchestrator sẽ không phải chuyển qua lại List[dict] khổng lồ trên Memory nữa.
+    op_ingest_and_store_raw()
 
 
 @job(
