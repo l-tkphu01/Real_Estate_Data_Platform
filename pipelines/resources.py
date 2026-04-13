@@ -27,14 +27,19 @@ def storage_resource(context) -> AzureStorageClient:
 
 
 def build_spark_resource(settings: Settings) -> Any:
-    """Tạo SparkSession duy nhất, tối ưu RAM để bảo vệ máy local."""
+    """Tạo SparkSession duy nhất, tối ưu RAM để xử lý 1000 records.
+    
+    Memory allocation:
+    - 1GB → 2GB: Scale từ 200 records (MVP) → 1000 records (scaling)
+    - Đủ cho Silver/Gold transformation mà không bị JVM OOM
+    """
     from pyspark.sql import SparkSession
     
-    # 1GB RAM limit de test an toan tren may ca nhan, tranh JVM bi kill (JAVA_GATEWAY_EXITED) do vuot qua RAM cua Docker
+    # 2GB RAM limit để xử lý 1000 records bất động sản + deduplication + transformation
     # Dùng RawLocalFileSystem để tắt hoàn toàn tính năng đẻ rác .crc của Hadoop Local Checksum file
     builder = SparkSession.builder.appName(settings.runtime.project_name) \
-        .config("spark.driver.memory", "1g") \
-        .config("spark.executor.memory", "1g") \
+        .config("spark.driver.memory", "2g") \
+        .config("spark.executor.memory", "2g") \
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \

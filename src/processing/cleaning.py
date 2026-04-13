@@ -16,7 +16,7 @@ def clean_records(df: DataFrame) -> DataFrame:
         .withColumn("_posted_at_raw", 
                     F.regexp_replace(F.trim(F.col("posted_at")), "Z$", "+00:00")) \
         .withColumn("_posted_at_dt", F.to_timestamp(F.col("_posted_at_raw")))
-
+    
     # 3. Chuẩn hóa kiểu dữ liệu
     clean_df = clean_df \
         .withColumn("price", F.round(F.col("price").cast("double"), 2)) \

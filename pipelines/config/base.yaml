@@ -23,3 +23,9 @@ ingestion:
   request_timeout_seconds: 30
   ingestion_max_retries: 3
   ingestion_backoff_seconds: 2
+  max_pages: 10
+  pages_per_batch: 5
+  batch_delay_seconds: 2.0
+  semaphore_size: 3
+  categories: [1000]  # Default: chỉ cào bất động sán (1000)
+  pages_per_category: 10  # Số trang/category

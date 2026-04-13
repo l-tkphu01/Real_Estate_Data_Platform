@@ -8,7 +8,7 @@ from delta.tables import DeltaTable
 
 def _overwrite_delta(df: Any, target_path: str) -> None:
     """Ghi đè Delta table để đảm bảo dữ liệu deterministic cho local dev."""
-    (
+    (  
         df.write.format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")

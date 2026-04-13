@@ -1,0 +1,36 @@
+runtime:
+  dagster_home: /opt/dagster/dagster_home
+
+storage:
+  # Cấu hình kết nối Azurite tại localhost dành cho môi trường dev
+  azure_endpoint: http://127.0.0.1:10000/devstoreaccount1
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: ""  # Được ghi đè bởi cấu hình trong .env
+
+ingestion:
+  # 🏠 CONFIG: Training Data cho BĐS (Bất Động Sản)
+  # Category 1000 ONLY - Để train model dự báo giá nhà đất
+  max_pages: 50
+  pages_per_batch: 5
+  batch_delay_seconds: 2.0
+  semaphore_size: 3
+  categories: [1000]              # ⭐ SINGLE: Only BĐS
+  pages_per_category: 50
+  # request_timeout_seconds: 60  # Optional: tăng timeout nếu cần
+
+# ─────────────────────────────────────────────────────────────────
+# 🏠 TRAINING MODE: Bất Động Sán (Category 1000)
+# ─────────────────────────────────────────────────────────────────
+# Mục đích: Lấy 1000 records BĐS để train AI model dự báo giá
+#
+# Usage:
+#   export APP_PROFILE=local.property
+#   python -m dagster dev
+#
+# Output:
+#   ├─ Azurite: /training/property/property_*.json (1000 records)
+#   ├─ Local: data/training/property/property_*.json
+#   └─ Ready để train XGBoost/LightGBM price prediction model
+#
+# Next: Xem README_TRAINING_AI.md để biết cách train model
+# ─────────────────────────────────────────────────────────────────

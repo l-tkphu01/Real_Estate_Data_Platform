@@ -1,7 +1,8 @@
 """Azure Storage client abstraction."""
 
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from azure.core.exceptions import ResourceExistsError
@@ -11,6 +12,7 @@ from src.config import Settings
 
 
 AZURE_BLOB_API_VERSION = "2023-11-03"
+logger = logging.getLogger(__name__)
 
 class AzureStorageClient:
     """Unified storage client interface cho Azure Data Lake / Azurite."""
@@ -29,11 +31,11 @@ class AzureStorageClient:
         try:
             if not self.container_client.exists():
                 self.container_client.create_container()
-                print(f"Container '{self.settings.azure_container}' created successfully.")
+                logger.info(f"Container '{self.settings.azure_container}' created successfully.")
         except ResourceExistsError:
             pass
         except Exception as e:
-            print(f"Warning: Could not create container or check its existence: {e}")
+            logger.warning(f"Could not create container or check its existence: {e}")
 
     def get_connection_string(self) -> str:
         return self.settings.azure_connection_string()
@@ -69,5 +71,7 @@ class AzureStorageClient:
         if not candidates:
             return None
 
-        latest_blob = max(candidates, key=lambda blob: blob.last_modified or datetime.min)
+        # Sử dụng  timezone-aware datetime.min (UTC) để tránh lỗi khi so sánh với blob.last_modified
+        min_time = datetime.min.replace(tzinfo=timezone.utc)
+        latest_blob = max(candidates, key=lambda blob: blob.last_modified or min_time)
         return latest_blob.name

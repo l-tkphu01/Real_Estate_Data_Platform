@@ -1,0 +1,23 @@
+# Cấu hình Master Data Management (MDM)
+# File này chứa các quy tắc chuẩn hóa và gộp thực thể để tránh hardcode trong Python.
+
+mdm:
+  # 1. Entity Resolution (Đồng nhất thực thể - Gộp nhà trùng lặp)
+  entity_resolution:
+    # Ngưỡng độ tin cậy để AI/Thuật toán gộp 2 tin đăng làm 1 (Ví dụ: giống nhau 85%)
+    fuzzy_match_threshold: 0.85
+    # Các cột dùng để so khớp mức độ trùng lặp
+    match_columns: ["title", "price", "area_sqm", "district"]
+
+  # 2. Reference Data (Quản lý Danh mục chuẩn - Master Data)
+  # Map các từ ngữ địa phương/khác nhau về 1 chuẩn duy nhất của hệ thống
+  city_mapping:
+    "Hồ Chí Minh": ["HCM", "Sài Gòn", "TP.HCM", "SG", "Thành phố Hồ Chí Minh"]
+    "Hà Nội": ["HN", "Thủ Đô", "TP.HN", "Hanoi"]
+    
+  property_type_mapping:
+    "Căn hộ chung cư": ["Chung cư", "Căn hộ", "Condotel", "Apartment", "CHCC"]
+    "Nhà đất": ["Nhà phố", "Nhà hẻm", "Nhà riêng", "Biệt thự", "Nhà liền kề"]
+
+  # 3. Nơi lưu trữ các bảng Danh mục chuẩn (Reference Tables) ở tầng Silver
+  reference_data_path: "lakehouse/master_data/"
