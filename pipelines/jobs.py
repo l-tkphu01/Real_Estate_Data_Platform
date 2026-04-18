@@ -1,6 +1,7 @@
 """Contract Dagster jobs cho end-to-end real estate pipeline."""
 
 from dagster import job, DagsterInvariantViolationError
+from pipelines.ops.cdc_ops import op_detect_changes
 from pipelines.ops.ingestion_ops import op_fetch_source_data, op_store_raw_snapshot
 from pipelines.ops.processing_ops import (
     op_clean_records,
