@@ -124,15 +124,37 @@ def _count_invalid_reasons(invalid_records: list[dict[str, Any]]) -> dict[str, i
     return counts
 
 
-@op(required_resource_keys={"spark"})
+@op(required_resource_keys={"settings", "spark"})
 def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[str, Any]]:
     """Chuẩn hóa kiểu dữ liệu và text phân tán bằng PySpark."""
     spark = context.resources.spark
+    settings = context.resources.settings
     records = validation_result["valid_records"]
     if not records: return []
     
     df = spark.createDataFrame(records)
-    cleaned_df = clean_records(df)
+    cleaned_df = clean_records(df, getattr(settings, "mdm", None))
+    
+    # === BÁO CÁO THỐNG KÊ HIỆU SUẤT MDM LÊN DAGSTER ===
+    total_records = cleaned_df.count()
+    if total_records > 0 and "mapping_source" in cleaned_df.columns:
+        context.log.info(f"📊 BÁO CÁO HIỆU SUẤT HYBRID FALLBACK ({total_records} bản ghi):")
+        stats_df = cleaned_df.groupBy("mapping_source").count().collect()
+        for row in stats_df:
+            percentage = round((row["count"] / total_records) * 100, 2)
+            context.log.info(f" 🎯 {row['mapping_source']}: {row['count']} căn ({percentage}%)")
+            
+    # Ghi log 10 dòng mẫu ra Dagster UI để kiểm chứng
+    context.log.info("🏙️ KẾT QUẢ SAMPLE 10 DÒNG:")
+    if "mapping_source" in cleaned_df.columns:
+        sample_rows = cleaned_df.select("property_id", "title", "property_type", "mapping_source").limit(10).collect()
+        for row in sample_rows:
+            context.log.info(f"[SAMPLE] Tiêu đề: '{row.title}' | Ánh xạ ra: '{row.property_type}' [{row.mapping_source}]")
+        
+    # Xoá cột tracking dọn rác trước khi xuất kho
+    if "mapping_source" in cleaned_df.columns:
+        cleaned_df = cleaned_df.drop("mapping_source")
+        
     return [row.asDict() for row in cleaned_df.collect()]
 
 

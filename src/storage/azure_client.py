@@ -53,10 +53,6 @@ class AzureStorageClient:
         json_data = json.dumps(payload, ensure_ascii=False)
         blob_client.upload_blob(json_data, overwrite=True)
 
-    def put_parquet(self, key: str, records: list[dict[str, Any]]) -> None:
-        """Dành cho giai đoạn Pyspark lưu giữ sau này."""
-        raise NotImplementedError("Sử dụng PySpark Delta writer thay vì hàm này.")
-
     def list_keys(self, prefix: str) -> list[str]:
         """Liệt kê các blob (file) trong một thư mục nhất định."""
         blob_list = self.container_client.list_blobs(name_starts_with=prefix)

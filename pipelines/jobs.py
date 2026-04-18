@@ -1,6 +1,6 @@
 """Contract Dagster jobs cho end-to-end real estate pipeline."""
 
-from dagster import job, DagsterInvariantViolationError
+from dagster import job
 from pipelines.ops.ingestion_ops import op_ingest_and_store_raw
 from pipelines.ops.processing_ops import (
     op_clean_records,
@@ -15,26 +15,16 @@ from pipelines.ops.processing_ops import (
 from pipelines.resources import settings_resource, spark_resource, storage_resource
 
 
-# Job config: Timeout cho batching ingestion (10 pages/batch × 2s delay × 10 batches ~ 50s max, buffer to 300s)
+# Job config cho ingestion (batching)
 INGESTION_JOB_CONFIG = {
     "ops": {},
-    "resources": {},
-    "execution": {
-        "config": {
-            "timeout_seconds": 300
-        }
-    }
+    "resources": {}
 }
 
-# Job config: Timeout cho PySpark processing (2GB Spark memory, 1000 records ~ 300s)
+# Job config cho PySpark processing 
 PROCESSING_JOB_CONFIG = {
     "ops": {},
-    "resources": {},
-    "execution": {
-        "config": {
-            "timeout_seconds": 300
-        }
-    }
+    "resources": {}
 }
 
 

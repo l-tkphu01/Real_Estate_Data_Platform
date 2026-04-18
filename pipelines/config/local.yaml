@@ -1,0 +1,24 @@
+# ─────────────────────────────────────────────────────────────────
+# Profile: local (Bất Động Sản — Azurite emulator)
+# ─────────────────────────────────────────────────────────────────
+# Usage:
+#   APP_PROFILE=local docker compose up
+#   APP_PROFILE=local python -m dagster dev
+# ─────────────────────────────────────────────────────────────────
+
+runtime:
+  dagster_home: /opt/dagster/dagster_home
+
+storage:
+  # Kết nối Azurite từ bên trong mạng lưới Docker Compose
+  azure_endpoint: http://azurite:10000/devstoreaccount1
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: ""  # Được ghi đè bởi .env
+
+ingestion:
+  # Cào 50 trang BĐS (1000 records) với batching an toàn
+  data_source_url: https://gateway.chotot.com/v1/public/ad-listing
+  max_pages: 50
+  pages_per_batch: 5
+  batch_delay_seconds: 2.0
+  semaphore_size: 3

@@ -10,8 +10,8 @@ from src.storage.azure_client import AzureStorageClient
 
 def run_smoke_test():
     print("1. Đang nạp cấu hình (YAML)...")
-    # Ép dùng profile local.azurite để test
-    os.environ["APP_PROFILE"] = "local.azurite"
+    # Ép dùng profile local để test
+    os.environ["APP_PROFILE"] = "local"
     os.environ["CONFIG_DIR"] = "pipelines/config"
     os.environ["AZURE_ENDPOINT"] = "http://127.0.0.1:10000/devstoreaccount1"
     settings = load_settings()
