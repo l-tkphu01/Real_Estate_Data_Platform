@@ -2,7 +2,7 @@
 
 from dagster import job, DagsterInvariantViolationError
 from pipelines.ops.cdc_ops import op_detect_changes
-from pipelines.ops.ingestion_ops import op_fetch_source_data, op_store_raw_snapshot
+from pipelines.ops.ingestion_ops import op_ingest_and_store_raw
 from pipelines.ops.processing_ops import (
     op_clean_records,
     op_load_latest_raw_records,
@@ -16,26 +16,16 @@ from pipelines.ops.processing_ops import (
 from pipelines.resources import settings_resource, spark_resource, storage_resource
 
 
-# Job config: Timeout cho batching ingestion (10 pages/batch × 2s delay × 10 batches ~ 50s max, buffer to 300s)
+# Job config cho ingestion (batching)
 INGESTION_JOB_CONFIG = {
     "ops": {},
-    "resources": {},
-    "execution": {
-        "config": {
-            "timeout_seconds": 300
-        }
-    }
+    "resources": {}
 }
 
-# Job config: Timeout cho PySpark processing (2GB Spark memory, 1000 records ~ 300s)
+# Job config cho PySpark processing 
 PROCESSING_JOB_CONFIG = {
     "ops": {},
-    "resources": {},
-    "execution": {
-        "config": {
-            "timeout_seconds": 300
-        }
-    }
+    "resources": {}
 }
 
 
@@ -55,11 +45,9 @@ def ingestion_job():
     - Network latency buffer
     """
     
-    # Bước 1: Fetch
-    data = op_fetch_source_data()
-    
-    # Bước 2: Đẩy vào Raw Azurite
-    op_store_raw_snapshot(data)
+    # Bước 1 & 2 được gộp chung để chống OOM RAM Dagster (OOM Prevention)
+    # Orchestrator sẽ không phải chuyển qua lại List[dict] khổng lồ trên Memory nữa.
+    op_ingest_and_store_raw()
 
 
 @job(
@@ -80,7 +68,8 @@ def processing_job():
     - Delta Lake writes
     """
     raw_records = op_load_latest_raw_records()
-    validation_result = op_validate_records(raw_records)
+    new_records = op_detect_changes(raw_records) # Bẻ lái qua Bộ Sinh Trắc Vân Tay CDC
+    validation_result = op_validate_records(new_records)
     op_publish_data_quality_report(validation_result)
     cleaned_records = op_clean_records(validation_result)
 

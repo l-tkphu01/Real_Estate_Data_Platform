@@ -5,7 +5,7 @@ Usage:
     python scripts/test_pipeline_timing.py
     
 Hoặc từ environment khác:
-    APP_PROFILE=local.scale python scripts/test_pipeline_timing.py
+    APP_PROFILE=local python scripts/test_pipeline_timing.py
 
 Timeline output:
     ┌─ Ingestion Job (batching)

@@ -2,8 +2,10 @@
 
 Nguồn cấu hình được nạp theo thứ tự ưu tiên:
 1) base.yaml
-2) profile yaml (ví dụ: local.azurite.yaml)
-3) environment variables
+2) profile yaml (ví dụ: local.yaml)
+3) environment variables (.env)
+
+Chỉ hỗ trợ pipeline Bất Động Sản (category 1000).
 """
 
 from __future__ import annotations
@@ -27,17 +29,21 @@ class RuntimeSettings:
     """Runtime settings dùng cho metadata và orchestration services."""
 
     project_name: str
-    profile: str # Ví dụ: local.azurite, prod.azure
-    dagster_home: str # Đường dẫn tuyệt đối hoặc tương đối (từ PROJECT_ROOT) đến thư mục DAGSTER_HOME để lưu trữ logs, run history, v.v.
-    superset_secret_key: str # Chuỗi bí mật dùng cho Superset session và CSRF protection (có thể random một giá trị đủ dài khi chạy local)
+    profile: str  # Ví dụ: local, prod.azure
+    dagster_home: str
+    superset_secret_key: str
+
+    def __post_init__(self):
+        if not self.profile:
+            raise ValueError("profile không được để trống")
 
 
 @dataclass(frozen=True, slots=True)
 class LoggingSettings:
     """Logging settings dùng xuyên suốt các modules."""
 
-    level: str # Ví dụ: DEBUG (ghi chi tiết nhất), INFO (ghi thông tin chung, trạng thái hệ thống), WARNING (ghi cảnh báo), ERROR (ghi lỗi), CRITICAL (lỗi nghiem trọng sẽ không bị lọc bỏ)
-    fmt: str # Ví dụ: "%(asctime)s | %(levelname)s | %(name)s | %(message)s" (thời gian | cấp độ log | tên logger | nội dung log) - có thể tùy chỉnh để thêm thread id, module name, v.v. theo nhu cầu observability của dự án.
+    level: str  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    fmt: str  # Format string cho logging output
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,21 +60,48 @@ class StorageSettings:
     gold_prefix: str
     cdc_state_prefix: str
 
+    def __post_init__(self):
+        # Validate bằng các hàm đã có bên dưới để đảm bảo không bị dead code
+        object.__setattr__(self, 'raw_prefix', _validate_path_prefix(self.raw_prefix, 'raw_prefix'))
+        object.__setattr__(self, 'bronze_prefix', _validate_path_prefix(self.bronze_prefix, 'bronze_prefix'))
+        object.__setattr__(self, 'silver_prefix', _validate_path_prefix(self.silver_prefix, 'silver_prefix'))
+        object.__setattr__(self, 'gold_prefix', _validate_path_prefix(self.gold_prefix, 'gold_prefix'))
+        object.__setattr__(self, 'cdc_state_prefix', _validate_path_prefix(self.cdc_state_prefix, 'cdc_state_prefix'))
+
 
 @dataclass(frozen=True, slots=True)
 class IngestionSettings:
-    """Ingestion settings cho retry, timeout, batching, multi-category và data source endpoint."""
+    """Ingestion settings cho retry, timeout, batching.
+
+    Chỉ hỗ trợ Bất Động Sản (category 1000) — không cần multi-category.
+    """
 
     data_source_url: str
     request_timeout_seconds: int
     ingestion_max_retries: int
-    ingestion_backoff_seconds: int # Số giây chờ giữa các lần retry, sẽ tăng theo cấp số nhân (exponential backoff) để tránh quá tải hệ thống nguồn khi có sự cố tạm thời.
-    max_pages: int # Tổng số trang cần cào (mỗi trang 20 records), default 10 cho MVP, 50 cho scaling (1000 records)
-    pages_per_batch: int # Số trang cào trước khi tạm dừng (anti-ban), default 5
-    batch_delay_seconds: float # Số giây chờ giữa các batch để tránh bị chặn, default 2.0
-    semaphore_size: int # Số request đồng thời tối đa (anti-ban), default 3 để an toàn khi scale
-    categories: list[int] # Danh sách category IDs cần cào (VD: [1000, 1001, 1002]), default [1000] (chỉ bất động sán)
-    pages_per_category: int # Số trang cào/category (nếu multi-category), default = max_pages / len(categories)
+    ingestion_backoff_seconds: int
+    max_pages: int
+    pages_per_batch: int
+    batch_delay_seconds: float
+    semaphore_size: int
+
+    def __post_init__(self):
+        object.__setattr__(self, 'request_timeout_seconds', _validate_timeout(self.request_timeout_seconds))
+        object.__setattr__(self, 'ingestion_max_retries', _validate_retry_count(self.ingestion_max_retries))
+        object.__setattr__(self, 'ingestion_backoff_seconds', _validate_backoff(self.ingestion_backoff_seconds))
+        object.__setattr__(self, 'max_pages', _validate_max_pages(self.max_pages))
+        object.__setattr__(self, 'pages_per_batch', _validate_pages_per_batch(self.pages_per_batch))
+        object.__setattr__(self, 'batch_delay_seconds', _validate_batch_delay(self.batch_delay_seconds))
+        object.__setattr__(self, 'semaphore_size', _validate_semaphore_size(self.semaphore_size))
+
+
+@dataclass(frozen=True, slots=True)
+class MdmSettings:
+    """Settings cho Master Data Management."""
+    fuzzy_match_threshold: float
+    match_columns: list[str]
+    city_mapping: dict[str, list[str]]
+    property_type_mapping: dict[str, list[str]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +112,7 @@ class Settings:
     logging: LoggingSettings
     storage: StorageSettings
     ingestion: IngestionSettings
+    mdm: MdmSettings
 
     @property
     def azure_container(self) -> str:
@@ -102,15 +136,12 @@ class Settings:
 
     def azure_connection_string(self) -> str:
         """Build chuỗi kết nối Azure hỗ trợ Account Key (Azurite/Cloud).
-        
+
         Hỗ trợ:
         - Azurite local (endpoint không None) → http + Account Key
         - Azure Cloud (endpoint None) → https + Account Key
-        
-        TODO: Trong tương lai hỗ trợ SAS token + Managed Identity.
         """
         if self.storage.azure_endpoint:
-            # Azurite mode (local development)
             return (
                 f"DefaultEndpointsProtocol=http;"
                 f"AccountName={self.storage.azure_storage_account};"
@@ -118,7 +149,6 @@ class Settings:
                 f"BlobEndpoint={self.storage.azure_endpoint};"
             )
         else:
-            # Azure Cloud mode (production)
             return (
                 f"DefaultEndpointsProtocol=https;"
                 f"AccountName={self.storage.azure_storage_account};"
@@ -126,10 +156,10 @@ class Settings:
                 f"EndpointSuffix=core.windows.net"
             )
 
-def _parse_bool(value: str) -> bool: 
-    """Parse chuỗi boolean từ environment variables."""
-    return value.strip().lower() in {"1", "true", "yes", "on"} # Hỗ trợ nhiều cách biểu diễn True phổ biến trong env vars (1, true, yes, on) để linh hoạt hơn khi cấu hình qua CLI hoặc CI/CD pipelines.
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# VALIDATORS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _validate_path_prefix(prefix: str, field_name: str) -> str:
     """Validate storage path prefix (không cho phép .., trailing /, hoặc path rỗng)."""
@@ -214,60 +244,34 @@ def _validate_semaphore_size(sem_size: int) -> int:
     return sem_size
 
 
-def _validate_categories(categories: list[int]) -> list[int]:
-    """Validate categories list (không được rỗng, mỗi category trong range [1000, 1099])."""
-    if not isinstance(categories, list) or len(categories) == 0:
-        raise ValueError(
-            f"categories phải là non-empty list, "
-            f"nhận được: {categories}"
-        )
-    for cat_id in categories:
-        if not isinstance(cat_id, int) or cat_id < 1000 or cat_id > 1099:
-            raise ValueError(
-                f"category ID phải trong range [1000, 1099], "
-                f"nhận được: {cat_id}"
-            )
-    return categories
-
-
-def _validate_pages_per_category(pages: int) -> int:
-    """Validate pages_per_category (phải trong range 1-100)."""
-    if pages < 1 or pages > 100:
-        raise ValueError(
-            f"pages_per_category phải trong range [1, 100], "
-            f"nhận được: {pages}"
-        )
-    return pages
-
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIG LOADING
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _ensure_dagster_home(path_str: str) -> str:
-    """Ensure DAGSTER_HOME path tồn tại, tạo nếu cần thiết.
-    
-    Trả về đường dẫn đã validate (tuyệt đối hoặc tương đối từ PROJECT_ROOT).
-    """
+    """Ensure DAGSTER_HOME path tồn tại, tạo nếu cần thiết."""
     if not path_str or not isinstance(path_str, str):
         raise ValueError("DAGSTER_HOME không được để trống")
-    
+
     target = Path(path_str)
     if not target.is_absolute():
         target = PROJECT_ROOT / target
-    
+
     if not target.exists():
         try:
-            target.mkdir(parents=True, exist_ok=True, mode=0o755) # dùng mode 755 để đảm bảo thư mục có quyền đọc/ghi cho owner và đọc/execute cho group và others, tránh lỗi permission khi Dagster cố gắng ghi logs hoặc run history vào đó.
+            target.mkdir(parents=True, exist_ok=True, mode=0o755)
             logger = logging.getLogger(__name__)
             logger.info(f"Created DAGSTER_HOME: {target}")
         except Exception as e:
             raise ValueError(
                 f"Không tạo được DAGSTER_HOME '{path_str}': {e}"
             ) from e
-    
+
     return str(target)
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     """Nạp một file YAML và trả về dict rỗng nếu file trống."""
-
     if not path.exists():
         raise FileNotFoundError(f"Không tìm thấy file config: {path}")
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -276,11 +280,10 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     """Merge 2 dict theo chiều sâu để profile override base config."""
-
     merged = dict(base)
     for key, value in override.items():
         if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-            merged[key] = _deep_merge(merged[key], value) # Đệ quy merge dict con nếu cả base và override đều có dict ở key này
+            merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = value
     return merged
@@ -288,7 +291,6 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
 
 def _set_nested(target: dict[str, Any], path: tuple[str, ...], value: Any) -> None:
     """Gán value vào dict nhiều tầng theo đường dẫn path."""
-
     cursor = target
     for key in path[:-1]:
         cursor = cursor.setdefault(key, {})
@@ -321,8 +323,6 @@ def _load_env_overrides() -> dict[str, Any]:
         "PAGES_PER_BATCH": (("ingestion", "pages_per_batch"), int),
         "BATCH_DELAY_SECONDS": (("ingestion", "batch_delay_seconds"), float),
         "SEMAPHORE_SIZE": (("ingestion", "semaphore_size"), int),
-        "CATEGORIES": (("ingestion", "categories"), lambda x: [int(c.strip()) for c in x.split(",")]),
-        "PAGES_PER_CATEGORY": (("ingestion", "pages_per_category"), int),
     }
 
     overrides: dict[str, Any] = {}
@@ -339,7 +339,6 @@ def _load_env_overrides() -> dict[str, Any]:
 
 def _required(section: dict[str, Any], key: str, section_name: str) -> Any:
     """Lấy giá trị bắt buộc hoặc raise ValueError nếu thiếu."""
-
     value = section.get(key)
     if value is None or value == "":
         raise ValueError(f"Thiếu cấu hình bắt buộc: {section_name}.{key}")
@@ -356,7 +355,7 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
 
     dagster_home_raw = _required(runtime_cfg, "dagster_home", "runtime")
     dagster_home_validated = _ensure_dagster_home(str(dagster_home_raw))
-    
+
     runtime = RuntimeSettings(
         project_name=str(_required(runtime_cfg, "project_name", "runtime")),
         profile=profile,
@@ -364,7 +363,7 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
         superset_secret_key=str(_required(runtime_cfg, "superset_secret_key", "runtime")),
     )
 
-    logging = LoggingSettings(
+    log_settings = LoggingSettings(
         level=str(logging_cfg.get("level", "INFO")).upper(),
         fmt=str(logging_cfg.get("fmt", "%(asctime)s | %(levelname)s | %(name)s | %(message)s")),
     )
@@ -373,84 +372,41 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
     if isinstance(endpoint_raw, str):
         endpoint_raw = endpoint_raw.strip()
     endpoint = None if endpoint_raw in {"", None} else str(endpoint_raw)
-    
-    raw_prefix = _validate_path_prefix(
-        storage_cfg.get("raw_prefix", "raw/real_estate"), 
-        "raw_prefix"
-    )
-    bronze_prefix = _validate_path_prefix(
-        storage_cfg.get("bronze_prefix", "bronze/real_estate"), 
-        "bronze_prefix"
-    )
-    silver_prefix = _validate_path_prefix(
-        storage_cfg.get("silver_prefix", "silver/real_estate"), 
-        "silver_prefix"
-    )
-    gold_prefix = _validate_path_prefix(
-        storage_cfg.get("gold_prefix", "gold/real_estate"), 
-        "gold_prefix"
-    )
-    cdc_state_prefix = _validate_path_prefix(
-        storage_cfg.get("cdc_state_prefix", "state/cdc"), 
-        "cdc_state_prefix"
-    )
-    
+
     storage = StorageSettings(
         azure_container=str(_required(storage_cfg, "azure_container", "storage")),
         azure_storage_account=str(_required(storage_cfg, "azure_storage_account", "storage")),
         azure_storage_key=str(_required(storage_cfg, "azure_storage_key", "storage")),
         azure_endpoint=endpoint,
-        raw_prefix=raw_prefix,
-        bronze_prefix=bronze_prefix,
-        silver_prefix=silver_prefix,
-        gold_prefix=gold_prefix,
-        cdc_state_prefix=cdc_state_prefix,
+        raw_prefix=storage_cfg.get("raw_prefix", "raw/real_estate"),
+        bronze_prefix=storage_cfg.get("bronze_prefix", "bronze/real_estate"),
+        silver_prefix=storage_cfg.get("silver_prefix", "silver/real_estate"),
+        gold_prefix=storage_cfg.get("gold_prefix", "gold/real_estate"),
+        cdc_state_prefix=storage_cfg.get("cdc_state_prefix", "state/cdc"),
     )
 
-    timeout_validated = _validate_timeout(
-        int(ingestion_cfg.get("request_timeout_seconds", 30))
-    )
-    retries_validated = _validate_retry_count(
-        int(ingestion_cfg.get("ingestion_max_retries", 3))
-    )
-    backoff_validated = _validate_backoff(
-        int(ingestion_cfg.get("ingestion_backoff_seconds", 2))
-    )
-    max_pages_validated = _validate_max_pages(
-        int(ingestion_cfg.get("max_pages", 10))
-    )
-    pages_per_batch_validated = _validate_pages_per_batch(
-        int(ingestion_cfg.get("pages_per_batch", 5))
-    )
-    batch_delay_validated = _validate_batch_delay(
-        float(ingestion_cfg.get("batch_delay_seconds", 2.0))
-    )
-    semaphore_size_validated = _validate_semaphore_size(
-        int(ingestion_cfg.get("semaphore_size", 3))
-    )
-    categories_validated = _validate_categories(
-        ingestion_cfg.get("categories", [1000])  # Default: only real estate (1000)
-    )
-    # Calculate pages_per_category: total pages / num categories
-    pages_per_category_default = max(1, max_pages_validated // len(categories_validated))
-    pages_per_category_validated = _validate_pages_per_category(
-        int(ingestion_cfg.get("pages_per_category", pages_per_category_default))
-    )
-    
     ingestion = IngestionSettings(
         data_source_url=str(_required(ingestion_cfg, "data_source_url", "ingestion")),
-        request_timeout_seconds=timeout_validated,
-        ingestion_max_retries=retries_validated,
-        ingestion_backoff_seconds=backoff_validated,
-        max_pages=max_pages_validated,
-        pages_per_batch=pages_per_batch_validated,
-        batch_delay_seconds=batch_delay_validated,
-        semaphore_size=semaphore_size_validated,
-        categories=categories_validated,
-        pages_per_category=pages_per_category_validated,
+        request_timeout_seconds=int(ingestion_cfg.get("request_timeout_seconds", 30)),
+        ingestion_max_retries=int(ingestion_cfg.get("ingestion_max_retries", 3)),
+        ingestion_backoff_seconds=int(ingestion_cfg.get("ingestion_backoff_seconds", 2)),
+        max_pages=int(ingestion_cfg.get("max_pages", 10)),
+        pages_per_batch=int(ingestion_cfg.get("pages_per_batch", 5)),
+        batch_delay_seconds=float(ingestion_cfg.get("batch_delay_seconds", 2.0)),
+        semaphore_size=int(ingestion_cfg.get("semaphore_size", 3)),
     )
 
-    return Settings(runtime=runtime, logging=logging, storage=storage, ingestion=ingestion)
+    mdm_raw = config.get("mdm", {})
+    entity_res = mdm_raw.get("entity_resolution", {})
+    
+    mdm = MdmSettings(
+        fuzzy_match_threshold=float(entity_res.get("fuzzy_match_threshold", 0.85)),
+        match_columns=list(entity_res.get("match_columns", ["title", "price", "area_sqm", "district"])),
+        city_mapping=dict(mdm_raw.get("city_mapping", {})),
+        property_type_mapping=dict(mdm_raw.get("property_type_mapping", {}))
+    )
+
+    return Settings(runtime=runtime, logging=log_settings, storage=storage, ingestion=ingestion, mdm=mdm)
 
 
 def load_settings(profile: str | None = None, config_dir: str | None = None) -> Settings:
@@ -458,7 +414,7 @@ def load_settings(profile: str | None = None, config_dir: str | None = None) -> 
 
     load_dotenv(PROJECT_ROOT / ".env", override=False)
 
-    selected_profile = profile or os.getenv("APP_PROFILE", "local.azurite")
+    selected_profile = profile or os.getenv("APP_PROFILE", "local")
     raw_config_dir = config_dir or os.getenv("CONFIG_DIR", "pipelines/config")
     resolved_dir = Path(raw_config_dir)
     if not resolved_dir.is_absolute():
@@ -466,7 +422,13 @@ def load_settings(profile: str | None = None, config_dir: str | None = None) -> 
 
     base_cfg = _load_yaml(resolved_dir / "base.yaml")
     profile_cfg = _load_yaml(resolved_dir / f"{selected_profile}.yaml")
+    try:
+        mdm_cfg = _load_yaml(resolved_dir / "mdm_rules.yaml")
+    except FileNotFoundError:
+        mdm_cfg = {}
+        
     merged = _deep_merge(base_cfg, profile_cfg)
+    merged = _deep_merge(merged, mdm_cfg)
     merged = _deep_merge(merged, _load_env_overrides())
 
     return _build_settings(merged, selected_profile)

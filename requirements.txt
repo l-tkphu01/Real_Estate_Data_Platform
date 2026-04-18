@@ -2,30 +2,21 @@
 dagster==1.8.12
 dagster-webserver==1.8.12
 
-# Storage and integration
+# Storage
 azure-storage-blob==12.19.0
-adlfs==2023.12.0
-requests==2.32.3
-tenacity==9.0.0
 python-dotenv==1.0.1
-pydantic-settings==2.5.2
 PyYAML==6.0.2
 
-# Data processing and lakehouse
+# Data processing (PySpark + Delta Lake)
 pyspark==3.5.0
 delta-spark==3.1.0
-pandas==2.2.2
 pyarrow==17.0.0
-deltalake==0.20.2
 
-# Optional notebook automation
-papermill==2.6.0
-jupyter==1.0.0
-
-# Asynchronous Scraping & Validation
+# Async scraping & validation
 aiohttp==3.9.5
 fake-useragent==1.5.1
 pydantic==2.7.1
+tenacity==9.0.0
 
 # Testing
 pytest==8.1.1

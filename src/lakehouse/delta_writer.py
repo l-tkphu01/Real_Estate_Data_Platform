@@ -36,10 +36,6 @@ def _upsert_delta(spark: Any, df: Any, target_path: str, key_columns: list[str])
         .save(target_path)
     )
 
-def upsert_bronze(spark: Any, df: Any, target_path: str) -> None:
-    """Merge incremental records vào bronze Delta table."""
-    _upsert_delta(spark, df, target_path, key_columns=["property_id", "posted_at"])
-
 def upsert_silver(spark: Any, df: Any, target_path: str) -> None:
     """Merge transformed records vào silver Delta table."""
     _upsert_delta(spark, df, target_path, key_columns=["property_id"])
