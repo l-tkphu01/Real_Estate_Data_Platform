@@ -102,7 +102,36 @@ class MdmSettings:
     match_columns: list[str]
     city_mapping: dict[str, list[str]]
     property_type_mapping: dict[str, list[str]]
+ 
 
+@dataclass(frozen=True, slots=True)
+class CdcSettings:
+    """Settings cho Change Data Capture (CDC)."""
+    id_field: str
+    hash_fields: list[str]
+    state_filename: str
+    hash_algorithm: str
+
+    def __post_init__(self):
+        if not self.id_field:
+            raise ValueError("cdc.id_field không được để trống")
+        if not self.hash_fields:
+            raise ValueError("cdc.hash_fields không được để trống")
+        if not self.state_filename:
+            raise ValueError("cdc.state_filename không được để trống")
+        if self.hash_algorithm not in ["md5", "sha256", "sha1"]:
+            raise ValueError("cdc.hash_algorithm chỉ hỗ trợ: md5, sha1, sha256")
+
+
+@dataclass(frozen=True, slots=True)
+class AlertSettings:
+    """Settings cho việc gửi Alerts/Notifications."""
+    email_enabled: bool
+    smtp_host: str
+    smtp_port: int
+    sender_email: str
+    recipient_email: str
+    smtp_password: str
 
 @dataclass(frozen=True, slots=True)
 class Settings:
@@ -113,6 +142,8 @@ class Settings:
     storage: StorageSettings
     ingestion: IngestionSettings
     mdm: MdmSettings
+    cdc: CdcSettings
+    alerts: AlertSettings
 
     @property
     def azure_container(self) -> str:
@@ -323,6 +354,15 @@ def _load_env_overrides() -> dict[str, Any]:
         "PAGES_PER_BATCH": (("ingestion", "pages_per_batch"), int),
         "BATCH_DELAY_SECONDS": (("ingestion", "batch_delay_seconds"), float),
         "SEMAPHORE_SIZE": (("ingestion", "semaphore_size"), int),
+        "CDC_ID_FIELD": (("cdc", "id_field"), str),
+        "CDC_STATE_FILENAME": (("cdc", "state_filename"), str),
+        "CDC_HASH_ALGORITHM": (("cdc", "hash_algorithm"), str),
+        "CDC_HASH_FIELDS": (("cdc", "hash_fields"), lambda x: [i.strip() for i in x.split(",") if i.strip()]),
+        "SMTP_HOST": (("alerts", "email", "smtp_host"), str),
+        "SMTP_PORT": (("alerts", "email", "smtp_port"), int),
+        "SMTP_SENDER": (("alerts", "email", "sender"), str),
+        "SMTP_RECIPIENT": (("alerts", "email", "recipient"), str),
+        "SMTP_PASSWORD": (("alerts", "email", "smtp_password"), str),
     }
 
     overrides: dict[str, Any] = {}
@@ -406,7 +446,25 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
         property_type_mapping=dict(mdm_raw.get("property_type_mapping", {}))
     )
 
-    return Settings(runtime=runtime, logging=log_settings, storage=storage, ingestion=ingestion, mdm=mdm)
+    cdc_raw = config.get("cdc", {})
+    cdc = CdcSettings(
+        id_field=str(cdc_raw.get("id_field", "property_id")),
+        hash_fields=list(cdc_raw.get("hash_fields", ["property_id", "title", "price", "area_sqm"])),
+        state_filename=str(cdc_raw.get("state_filename", "fingerprints.json")),
+        hash_algorithm=str(cdc_raw.get("hash_algorithm", "md5"))
+    )
+
+    alerts_raw = config.get("alerts", {}).get("email", {})
+    alerts = AlertSettings(
+        email_enabled=bool(alerts_raw.get("enabled", False)),
+        smtp_host=str(alerts_raw.get("smtp_host", "smtp.gmail.com")),
+        smtp_port=int(alerts_raw.get("smtp_port", 587)),
+        sender_email=str(alerts_raw.get("sender", "")),
+        recipient_email=str(alerts_raw.get("recipient", "")),
+        smtp_password=str(os.getenv("SMTP_PASSWORD", ""))
+    )
+
+    return Settings(runtime=runtime, logging=log_settings, storage=storage, ingestion=ingestion, mdm=mdm, cdc=cdc, alerts=alerts)
 
 
 def load_settings(profile: str | None = None, config_dir: str | None = None) -> Settings:
@@ -427,8 +485,14 @@ def load_settings(profile: str | None = None, config_dir: str | None = None) -> 
     except FileNotFoundError:
         mdm_cfg = {}
         
+    try:
+        alerts_cfg = _load_yaml(resolved_dir / "alerts.yaml")
+    except FileNotFoundError:
+        alerts_cfg = {}
+        
     merged = _deep_merge(base_cfg, profile_cfg)
     merged = _deep_merge(merged, mdm_cfg)
+    merged = _deep_merge(merged, alerts_cfg)
     merged = _deep_merge(merged, _load_env_overrides())
 
     return _build_settings(merged, selected_profile)

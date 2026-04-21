@@ -1,7 +1,9 @@
 # ─────────────────────────────────────────────────────────────────
-# Base config — shared across all profiles
+# ROLE: Cấu hình Gốc (Core Configuration)
+# FILE: base.yaml 
+# DESCRIPTION: Chứa các tham số nền tảng, gốc rễ của dự án.
+#              Luôn được nạp đầu tiên và làm màng bảo vệ fallback data.
 # ─────────────────────────────────────────────────────────────────
-# Override bởi profile YAML (local.yaml, prod.yaml) và .env
 
 runtime:
   project_name: real-estate-data-platform
@@ -32,3 +34,17 @@ ingestion:
   pages_per_batch: 5
   batch_delay_seconds: 2.0
   semaphore_size: 3
+
+cdc:
+  id_field: property_id # Field duy nhất để biết bản ghi nào đang được xử lý
+  hash_fields: # Field được sử dụng để tạo mã băm (hash)
+    - property_id
+    - title
+    - price 
+    - area_sqm
+  state_filename: fingerprints.json # Tên file lưu trữ trạng thái
+  hash_algorithm: md5 # Ưu tiên MD5 vì tốc độ băm nhanh, phù hợp so sánh nội dung không có rủi ro bảo mật (sha256/sha1 vẫn hỗ trợ) 
+
+  # Lưu ý khi đổi mã băm: 
+  # - Nếu đổi hash_algorithm: Cần phải xóa file fingerprints.json cũ để hệ thống tính toán lại từ đầu.
+  # - Nếu đổi hash_fields: Cần phải xóa file fingerprints.json cũ để hệ thống tính toán lại từ đầu.

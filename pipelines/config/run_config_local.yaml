@@ -1,5 +1,8 @@
-# Run config mẫu cho Dagster local execution.
-# Các op chưa implement logic nên file này đóng vai trò blueprint.
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Cấu hình Chạy tự động (Run Variables)
+# FILE: run_config_local.yaml
+# DESCRIPTION: Cấu hình dagster ops, tham số truyền vào input khi chạy thủ công.
+# ─────────────────────────────────────────────────────────────────
 
 ops: {}
 resources: {}

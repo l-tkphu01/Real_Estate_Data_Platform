@@ -1,11 +1,10 @@
 # ─────────────────────────────────────────────────────────────────
-# Profile: local (Bất Động Sản — Azurite emulator)
-# ─────────────────────────────────────────────────────────────────
-# Usage:
+# ROLE: Môi trường Phát triển Local (Development Environment)
+# FILE: local.yaml
+# DESCRIPTION: Profile mô phỏng kết nối cục bộ (Azurite Emulator).
+# USAGE: 
 #   APP_PROFILE=local docker compose up
-#   APP_PROFILE=local python -m dagster dev
 # ─────────────────────────────────────────────────────────────────
-
 runtime:
   dagster_home: /opt/dagster/dagster_home
 

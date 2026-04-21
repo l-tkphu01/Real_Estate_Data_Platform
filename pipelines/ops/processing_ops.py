@@ -14,10 +14,11 @@ from typing import Any
 
 from dagster import op
 
-from src.lakehouse.delta_writer import overwrite_gold, upsert_silver
+from src.lakehouse.delta_writer import append_gold, upsert_silver, append_bronze
 from src.processing.cleaning import clean_records
 from src.processing.transform import transform_for_gold, transform_for_silver
 from src.processing.validation import validate_records
+import pyspark.sql.functions as F
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -57,6 +58,30 @@ def op_load_latest_raw_records(context) -> list[dict[str, Any]]:
     records = [item for item in payload if isinstance(item, dict)]
     context.log.info(f"Đã nạp {len(records)} raw records từ blob: {latest_key}")
     return records
+
+
+@op(required_resource_keys={"settings", "spark"})
+def op_write_bronze_delta(context, raw_records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Ghi trực tiếp raw data JSON vào Bronze Delta Lake để lưu trữ lịch sử thô vĩnh viễn."""
+    if not raw_records:
+        return []
+        
+    spark = context.resources.spark
+    settings = context.resources.settings
+    
+    df = spark.createDataFrame(raw_records)
+    
+    # Ép tất cả thành chữ (String) để bảng Bronze vĩnh viễn không bị lỗi schema mâu thuẫn (Schema Evolution)
+    for col_name in df.columns:
+        df = df.withColumn(col_name, F.col(col_name).cast("string"))
+        
+    target_path = _delta_path(settings.storage.bronze_prefix, settings)
+    append_bronze(spark, df, target_path)
+    context.log.info(f"✅ Đã lưu trữ lịch sử cục raw vào Bronze layer tại: {target_path}")
+    
+    # Push nguyên trạng records để chạy tiếp hướng CDC ở chốt tiếp theo
+    return raw_records 
+
 
 
 @op(required_resource_keys={"settings", "spark"}) 
@@ -199,7 +224,12 @@ def op_transform_gold(context, records: list[dict[str, Any]]) -> list[dict[str, 
 
 @op(required_resource_keys={"settings", "spark"})
 def op_write_gold_delta(context, records: list[dict[str, Any]]) -> str:
-    """Ghi dữ liệu tổng hợp Gold dạng Delta table."""
+    """Ghi dữ liệu tổng hợp Gold dạng Delta table (APPEND mode — giữ lịch sử).
+
+    Chiến lược: MERGE trên (city, district, snapshot_date)
+    - Cùng ngày: update snapshot (tránh duplicate)
+    - Ngày mới: append snapshot mới (tích lũy lịch sử)
+    """
     if not records:
         context.log.warning("Gold records rỗng, bỏ qua ghi Delta.")
         return "empty"
@@ -209,6 +239,8 @@ def op_write_gold_delta(context, records: list[dict[str, Any]]) -> str:
     target_path = _delta_path(settings.storage.gold_prefix, settings)
 
     df = spark.createDataFrame(records)
-    overwrite_gold(spark, df, target_path)
-    context.log.info(f"Đã ghi Gold Delta table tại: {target_path}")
+    append_gold(spark, df, target_path)
+    context.log.info(
+        f"Đã ghi Gold Delta table (append mode) tại: {target_path}"
+    )
     return target_path

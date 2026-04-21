@@ -1,5 +1,9 @@
-# Cấu hình Master Data Management (MDM)
-# File này chứa các quy tắc chuẩn hóa và gộp thực thể để tránh hardcode trong Python.
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Từ điển Nghiệp vụ (Business Rules)
+# FILE: mdm_rules.yaml
+# DESCRIPTION: Tách biệt logic kinh doanh, định nghĩa các bản đồ 
+#              gộp từ vựng và thuật toán entity resolution.
+# ─────────────────────────────────────────────────────────────────
 
 mdm:
   # 1. Entity Resolution (Đồng nhất thực thể - Gộp nhà trùng lặp)

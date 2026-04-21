@@ -1,10 +1,14 @@
-# Blueprint alert config.
-# Có thể map sang Slack, Email hoặc incident webhook ở giai đoạn production.
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Thông báo & Cảnh báo (Alerts & Monitoring)
+# FILE: alerts.yaml
+# DESCRIPTION: Blueprint cấu hình quy tắc Alert khi pipeline gặp sự cố, trễ SLA.
+# ─────────────────────────────────────────────────────────────────
 
 alerts:
-  on_failure:
-    channel: slack
-    severity: high
-  on_sla_breach:
-    channel: email
-    severity: medium
+  email:
+    enabled: true
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    sender: "your-email@gmail.com"
+    recipient: "your-email@gmail.com"
+    # SMTP_PASSWORD bắt buộc lưu trong .env, không được điền thẳng vào đây

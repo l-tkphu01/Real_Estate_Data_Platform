@@ -1,5 +1,8 @@
-# Blueprint schedule config.
-# Ví dụ: khai báo cron cho ingestion hằng giờ và processing hằng ngày.
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Lập lịch (Scheduling)
+# FILE: schedules.yaml
+# DESCRIPTION: Cấu hình Blueprint thời gian (cron) cho các luồng xử lý tự động.
+# ─────────────────────────────────────────────────────────────────
 
 schedules:
   ingestion_hourly:
