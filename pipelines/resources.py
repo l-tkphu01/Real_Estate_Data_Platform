@@ -44,7 +44,8 @@ def build_spark_resource(settings: Settings) -> Any:
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
         .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
         .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
+        .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
 
     # Connect to Azurite/Azure
     acc_name = settings.azure_storage_account

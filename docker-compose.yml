@@ -63,6 +63,7 @@ services:
     volumes:
       - ./docker/superset:/app/pythonpath
       - superset_home:/app/superset_home
+      - ./data:/app/data
     ports:
       - "8088:8088"
     command: >

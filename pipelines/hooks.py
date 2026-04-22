@@ -1,3 +1,5 @@
+"""Contract Hooks cho Dagster: Tự động gửi Email khi Pipeline lỗi/thành công"""
+
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

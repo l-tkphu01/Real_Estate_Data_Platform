@@ -68,7 +68,7 @@ def build_fact_listing(
             "property_type_key",
             F.col("property_type_name").alias("_pt_name"),
         ),
-        on=fact_df["property_type"] == dim_property_type_df["property_type_name"],
+        on=fact_df["property_type"] == F.col("_pt_name"),
         how="left",
     ).drop("_pt_name")
     
@@ -78,7 +78,7 @@ def build_fact_listing(
             "price_segment_key",
             F.col("segment_name").alias("_seg_name"),
         ),
-        on=fact_df["price_segment"] == dim_price_segment_df["segment_name"],
+        on=fact_df["price_segment"] == F.col("_seg_name"),
         how="left",
     ).drop("_seg_name")
     
@@ -88,7 +88,7 @@ def build_fact_listing(
             "area_segment_key",
             F.col("segment_name").alias("_area_seg_name"),
         ),
-        on=fact_df["area_segment"] == dim_area_segment_df["segment_name"],
+        on=fact_df["area_segment"] == F.col("_area_seg_name"),
         how="left",
     ).drop("_area_seg_name")
     

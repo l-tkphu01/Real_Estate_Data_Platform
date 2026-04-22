@@ -41,3 +41,12 @@
 - Bắt buộc: có kiểm thử idempotency và kịch bản replay-safe.
 - Bắt buộc: không hardcode endpoint/credentials trong code.
 - Bắt buộc: có checklist migrate local -> cloud và đã test.
+
+# kết nối database
+- Superset connect: duckdb:////app/data/superset.db
+
+-> Nạp bảng Delta Lake vào Superset (Bước quan trọng nhất) Vì dữ liệu của bạn lưu dạng File (Delta Lake) chứ không phải MySQL/Postgres truyền thống, nên bạn không thể chọn bảng từ danh sách thả xuống được. Bạn phải nạp nó qua SQL Lab:
+
+Trên thanh menu ngang, chọn SQL Lab -> SQL Editor.
+Chọn Database là cái DuckDB bạn vừa tạo.
+Ở khung soạn thảo, để đọc bảng Fact, bạn gõ đoạn mã này:
