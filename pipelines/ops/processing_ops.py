@@ -151,14 +151,57 @@ def _count_invalid_reasons(invalid_records: list[dict[str, Any]]) -> dict[str, i
 
 @op(required_resource_keys={"settings", "spark"})
 def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[str, Any]]:
-    """Chuẩn hóa kiểu dữ liệu và text phân tán bằng PySpark."""
+    """Chuẩn hóa kiểu dữ liệu và text phân tán bằng PySpark.
+    Tích hợp cơ chế Targeted Reprocessing (Quarantine DLQ).
+    """
     spark = context.resources.spark
     settings = context.resources.settings
     records = validation_result["valid_records"]
-    if not records: return []
     
-    df = spark.createDataFrame(records)
-    cleaned_df = clean_records(df, getattr(settings, "mdm", None))
+    # 1. Khởi tạo DataFrame mới từ Kafka/Bronze
+    if records:
+        df_new = spark.createDataFrame(records)
+    else:
+        # Tạo DataFrame rỗng với schema cơ bản nếu không có data mới
+        from pyspark.sql.types import StructType, StructField, StringType
+        schema = StructType([StructField("property_id", StringType(), True)])
+        df_new = spark.createDataFrame([], schema)
+
+    # 2. Đọc bảng Quarantine cũ (nếu có) để xử lý lại
+    quarantine_path = _delta_path("quarantine", settings)
+    try:
+        from delta.tables import DeltaTable
+        if DeltaTable.isDeltaTable(spark, quarantine_path):
+            df_quarantine = spark.read.format("delta").load(quarantine_path)
+            # Gộp data mới và data lỗi cũ lại thành 1 mẻ
+            df_combined = df_new.unionByName(df_quarantine, allowMissingColumns=True)
+            context.log.info(f"Đã nạp {df_quarantine.count()} bản ghi từ Quarantine để chạy lại MDM.")
+        else:
+            df_combined = df_new
+    except Exception as e:
+        context.log.warning(f"Không thể đọc Quarantine table: {e}")
+        df_combined = df_new
+
+    if df_combined.count() == 0:
+        return []
+
+    # 3. Chạy thuật toán dọn dẹp và áp dụng luật MDM
+    cleaned_df = clean_records(df_combined, getattr(settings, "mdm", None))
+    
+    # 4. Phân luồng: Tách MAPPED (Thành công) và UNMAPPED (Lỗi)
+    if "mapping_status" in cleaned_df.columns:
+        df_success = cleaned_df.filter(F.col("mapping_status") == "MAPPED")
+        df_failed = cleaned_df.filter(F.col("mapping_status") == "UNMAPPED")
+        
+        # Ghi đè (Overwrite) lại bảng Quarantine: Xóa lỗi cũ đã fix, cập nhật lỗi mới
+        df_failed.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(quarantine_path)
+        
+        fail_count = df_failed.count()
+        if fail_count > 0:
+            context.log.error(f"🚨 CẢNH BÁO: Phát hiện {fail_count} bản ghi địa lý không hợp lệ (UNMAPPED). Đã đưa vào Quarantine!")
+            
+        # Chỉ những bản ghi MAPPED mới được đi tiếp vào Silver
+        cleaned_df = df_success.drop("mapping_status")
     
     # === BÁO CÁO THỐNG KÊ HIỆU SUẤT MDM LÊN DAGSTER ===
     total_records = cleaned_df.count()
@@ -170,11 +213,11 @@ def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[st
             context.log.info(f" 🎯 {row['mapping_source']}: {row['count']} căn ({percentage}%)")
             
     # Ghi log 10 dòng mẫu ra Dagster UI để kiểm chứng
-    context.log.info("🏙️ KẾT QUẢ SAMPLE 10 DÒNG:")
+    context.log.info("🏙️ KẾT QUẢ SAMPLE 10 DÒNG (ĐÃ MAPPED THÀNH CÔNG):")
     if "mapping_source" in cleaned_df.columns:
-        sample_rows = cleaned_df.select("property_id", "title", "property_type", "mapping_source").limit(10).collect()
+        sample_rows = cleaned_df.select("property_id", "title", "property_type", "city", "district", "mapping_source").limit(10).collect()
         for row in sample_rows:
-            context.log.info(f"[SAMPLE] Tiêu đề: '{row.title}' | Ánh xạ ra: '{row.property_type}' [{row.mapping_source}]")
+            context.log.info(f"[SAMPLE] Title: '{row.title}' -> Type: {row.property_type} [{row.mapping_source}] | Loc: {row.city} - {row.district}")
         
     # Xoá cột tracking dọn rác trước khi xuất kho
     if "mapping_source" in cleaned_df.columns:

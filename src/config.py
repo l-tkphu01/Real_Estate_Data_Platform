@@ -101,6 +101,7 @@ class MdmSettings:
     fuzzy_match_threshold: float
     match_columns: list[str]
     city_mapping: dict[str, list[str]]
+    district_mapping: dict[str, list[str]]
     property_type_mapping: dict[str, list[str]]
  
 
@@ -443,6 +444,7 @@ def _build_settings(config: dict[str, Any], profile: str) -> Settings:
         fuzzy_match_threshold=float(entity_res.get("fuzzy_match_threshold", 0.85)),
         match_columns=list(entity_res.get("match_columns", ["title", "price", "area_sqm", "district"])),
         city_mapping=dict(mdm_raw.get("city_mapping", {})),
+        district_mapping=dict(mdm_raw.get("district_mapping", {})),
         property_type_mapping=dict(mdm_raw.get("property_type_mapping", {}))
     )
 

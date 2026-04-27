@@ -27,6 +27,7 @@ DIM_LOCATION_SCHEMA = StructType([
     StructField("city", StringType(), nullable=False),
     StructField("district", StringType(), nullable=False),
     StructField("city_normalized", StringType(), nullable=False),
+    StructField("district_normalized", StringType(), nullable=False),
     StructField("region_code", StringType(), nullable=True),
 ])
 
@@ -43,6 +44,9 @@ DIM_PRICE_SEGMENT_SCHEMA = StructType([
     StructField("price_floor_vnd", DecimalType(15, 2), nullable=False),
     StructField("price_ceiling_vnd", DecimalType(15, 2), nullable=True),
     StructField("segment_label_vi", StringType(), nullable=False),
+    StructField("valid_from", DateType(), nullable=False),
+    StructField("valid_to", DateType(), nullable=True),
+    StructField("is_current", BooleanType(), nullable=False),
 ])
 
 DIM_TIME_SCHEMA = StructType([

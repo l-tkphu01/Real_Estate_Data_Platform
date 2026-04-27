@@ -1,7 +1,7 @@
 """Contract xây dựng các bảng Dimension cho Star Schema bằng PySpark.
 
 Mỗi hàm nhận Silver/Gold DataFrame và trả về Dimension DataFrame sẵn sàng ghi Delta.
-Sử dụng monotonically_increasing_id() để tạo surrogate key trên môi trường local.
+Sử dụng row_number() over Window để tạo surrogate key tự tăng an toàn trên mọi môi trường.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from typing import Any
 
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
+from pyspark.sql.window import Window
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,14 @@ def build_dim_location(
     # 1. Lấy danh sách unique (city, district)
     location_df = silver_df.select("city", "district").distinct()
     
-    # 2. Tạo city_normalized — nếu đã qua MDM thì city đã chuẩn rồi
-    location_df = location_df.withColumn("city_normalized", F.col("city"))
+    # 2. Tạo city_normalized và district_normalized — nếu đã qua MDM thì city/district đã chuẩn rồi
+    location_df = location_df.withColumn("city_normalized", F.col("city")) \
+                             .withColumn("district_normalized", F.col("district"))
     
     # 3. Map region_code từ city_normalized
+    # Lưu ý: Region Code ở đây chính là Mã vùng miền (VD: HCM là Miền Nam, HN là Miền Bắc)
+    # Lý do hardcode cứng: Vì miền của 10 tỉnh thành này là cố định, không thay đổi theo thời gian
+    # và không thể lấy từ metadata (không có trong file config của bạn)
     region_map = {
         "Hồ Chí Minh": "HCM",
         "Hà Nội": "HN",
@@ -52,28 +57,31 @@ def build_dim_location(
         "Long An": "LA",
         "Bà Rịa - Vũng Tàu": "BRVT",
         "Khánh Hòa": "KH",
+        # Đây chính là phần bạn cần phải cập nhật thêm nếu sau này có tỉnh thành mới
     }
     
-    # Tạo map expression từ dict
-    from itertools import chain
+    # Tạo map expression từ dict (VD: HỒ CHÍ MINH -> HCM, HÀ NỘI -> HN, ...)
+    from itertools import chain 
     if region_map:
         map_expr = F.create_map([F.lit(x) for x in chain(*region_map.items())])
         location_df = location_df.withColumn(
             "region_code",
             F.coalesce(map_expr.getItem(F.col("city_normalized")), F.lit("OTHER"))
+            # Nếu city_normalized không có trong map -> gán là "OTHER"
         )
     else:
-        location_df = location_df.withColumn("region_code", F.lit("OTHER"))
+        location_df = location_df.withColumn("region_code", F.lit("OTHER")) 
     
-    # 4. Tạo surrogate key (bắt đầu từ 1)
+    # 4. Tạo surrogate key (bắt đầu từ 1) an toàn bằng Window Function
+    window_spec = Window.orderBy(F.lit(1))
     location_df = location_df.withColumn(
         "location_key",
-        (F.monotonically_increasing_id() + 1).cast("int")
+        F.row_number().over(window_spec)
     )
     
     # 5. Reorder columns
     return location_df.select(
-        "location_key", "city", "district", "city_normalized", "region_code"
+        "location_key", "city", "district", "city_normalized", "district_normalized", "region_code"
     )
 
 
@@ -110,7 +118,7 @@ def build_dim_property_type(silver_df: DataFrame) -> DataFrame:
         F.when(F.lower(F.col("property_type")).rlike(commercial_pattern), "Commercial")
         .when(F.lower(F.col("property_type")).rlike(land_pattern), "Land")
         .when(F.lower(F.col("property_type")).rlike(residential_pattern), "Residential")
-        .otherwise("Unknown")
+        .otherwise("Unknown") # Nếu không rơi vào các nhóm trên, gán là "Unknown"
     )
     
     type_df = type_df.withColumn("property_type_group", group_expr)
@@ -123,10 +131,11 @@ def build_dim_property_type(silver_df: DataFrame) -> DataFrame:
         ).otherwise("MDM Regex")
     )
     
-    # 4. Surrogate key
+    # 4. Surrogate key an toàn bằng Window Function
+    window_spec = Window.orderBy(F.lit(1))
     type_df = type_df.withColumn(
         "property_type_key",
-        (F.monotonically_increasing_id() + 1).cast("int")
+        F.row_number().over(window_spec)
     )
     
     return type_df.select(
@@ -151,10 +160,10 @@ def build_dim_price_segment(spark: SparkSession) -> DataFrame:
         - luxury: >= 12 tỷ
     """
     seed_data = [
-        (1, "affordable", Decimal("0"),               Decimal("3999999999.99"), "Bình dân (< 4 tỷ)"),
-        (2, "mid",        Decimal("4000000000.00"),    Decimal("7999999999.99"), "Trung cấp (4-8 tỷ)"),
-        (3, "upper_mid",  Decimal("8000000000.00"),    Decimal("11999999999.99"), "Trung cao (8-12 tỷ)"),
-        (4, "luxury",     Decimal("12000000000.00"),   None,                     "Cao cấp (≥ 12 tỷ)"),
+        (1, "affordable", Decimal("0"),               Decimal("3999999999.99"), "Bình dân (< 4 tỷ)",    date(2020, 1, 1), None, True),
+        (2, "mid",        Decimal("4000000000.00"),    Decimal("7999999999.99"), "Trung cấp (4-8 tỷ)",   date(2020, 1, 1), None, True),
+        (3, "upper_mid",  Decimal("8000000000.00"),    Decimal("11999999999.99"), "Trung cao (8-12 tỷ)",  date(2020, 1, 1), None, True),
+        (4, "luxury",     Decimal("12000000000.00"),   None,                     "Cao cấp (≥ 12 tỷ)",    date(2020, 1, 1), None, True),
     ]
     
     from src.warehouse.schema import DIM_PRICE_SEGMENT_SCHEMA

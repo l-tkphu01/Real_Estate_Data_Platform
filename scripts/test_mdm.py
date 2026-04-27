@@ -54,12 +54,11 @@ def main():
     cleaned_df = clean_records(df, settings.mdm)
 
     print("Du lieu SAU KHI xu ly MDM va TRICH XUAT THONG TIN:")
-    cleaned_df.select("property_id", "city", "property_type").show(truncate=False)
+    cleaned_df.select("property_id", "city", "district", "property_type", "mapping_status").show(truncate=False)
     
     print("Kiem tra ket qua:")
-    print("- ID 1, 2: Thanh pho -> 'Ho Chi Minh', Property Type -> 'Can ho/Chung cu' (rut ra tu 'nha' / 'can ho')")
-    print("- ID 4, 5: Phai duoc gom ve 'Ha Noi'")
-    print("- ID 6, 7: Bi giu nguyen (Vi du: 'SGN' do go sai, hoac 'Da Nang' khong thuoc dien gop)")
+    print("- ID 1, 3: Phải map ra 'Hồ Chí Minh' và 'Quận 1'/'Quận 3', status: MAPPED")
+    print("- ID 2: 'Bình Thạnh' chưa có trong mapping rules -> status: UNMAPPED")
     
     spark.stop()
 
