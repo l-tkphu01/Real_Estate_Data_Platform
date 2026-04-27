@@ -61,7 +61,8 @@ async def _fetch_page_async(
 
 async def _crawl_batch(
     base_url: str,
-    max_pages: int = 5,
+    start_page: int,
+    end_page: int,
     semaphore_size: int = 3,
     timeout: int = 30,
 ) -> list[dict[str, Any]]:
@@ -69,7 +70,8 @@ async def _crawl_batch(
 
     Args:
         base_url: API endpoint.
-        max_pages: Số trang cào trong batch này.
+        start_page: Trang bắt đầu trong batch này.
+        end_page: Trang kết thúc trong batch này.
         semaphore_size: Tối đa request cùng lúc (anti-ban).
         timeout: Timeout per request (giây).
     """
@@ -96,7 +98,7 @@ async def _crawl_batch(
                 return []
 
     async with aiohttp.ClientSession() as session:
-        tasks = [fetch_with_sem(session, p) for p in range(max_pages)]
+        tasks = [fetch_with_sem(session, p) for p in range(start_page, end_page)]
         pages_data = await asyncio.gather(*tasks)
         for page_data in pages_data:
             results.extend(page_data)
@@ -139,7 +141,8 @@ async def crawl_with_batching(
 
         batch_data = await _crawl_batch(
             base_url=base_url,
-            max_pages=end_page - start_page,
+            start_page=start_page,
+            end_page=end_page,
             semaphore_size=semaphore_size,
             timeout=timeout,
         )

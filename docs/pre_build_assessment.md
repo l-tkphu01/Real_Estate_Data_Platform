@@ -145,5 +145,6 @@ Giai thích về các bảng dim/fact trong Data Warehouse:
     → Lịch sử được bảo vệ (nhờ SCD Type 2)
     → Không cần sửa code Python (nhờ PostgreSQL) 
 
-- fact_listing: 
-  + 
+---
+# lệnh xem dữ liệu trong quarantine
+docker exec -it real-estate-dagster-web python scripts/view_quarantine.py 

@@ -55,10 +55,10 @@ mdm:
   # Từ điển các loại hình BĐS gộp từ vựng 
   property_type_mapping:
     "Căn hộ chung cư": ["Chung cư", "Căn hộ", "Condotel", "Apartment", "CHCC", "Penthouse"]
-    "Nhà phố/Nhà riêng": ["Nhà phố", "Nhà hẻm", "Nhà riêng", "Nhà liền kề", "Nhà nguyên căn"]
+    "Nhà phố/Nhà riêng": ["Nhà phố", "Nhà hẻm", "Nhà riêng", "Nhà liền kề", "Nhà nguyên căn", "Nhà ở"]
     "Biệt thự/Villa": ["Biệt thự", "Villa"]
     "Phòng trọ/Nhà trọ": ["Phòng trọ", "Nhà trọ", "Phòng gác lửng", "Ký túc xá", "Sleepbox"]
-    "Đất nền/Đất dự án": ["Đất nền", "Đất dự án", "Đất thổ cư", "Đất nông nghiệp"]
+    "Đất nền/Đất dự án": ["Đất nền", "Đất dự án", "Đất thổ cư", "Đất nông nghiệp", "Đất"]
     "Văn phòng/Mặt bằng": ["Văn phòng", "Mặt bằng kinh doanh", "Mặt bằng", "Shop house", "Shophouse"]
 
   # 3. Nơi lưu trữ các bảng Danh mục chuẩn (Reference Tables) ở tầng Silver

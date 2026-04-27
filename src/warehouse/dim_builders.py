@@ -99,8 +99,11 @@ def build_dim_property_type(silver_df: DataFrame) -> DataFrame:
         DataFrame với schema: property_type_key, property_type_name, 
                                property_type_group, mapping_source
     """
-    # 1. Lấy danh sách unique property_type
-    type_df = silver_df.select("property_type").distinct()
+    # 1. Lấy danh sách unique property_type kèm theo mapping_source từ Silver
+    # Dùng groupBy và lấy first để giữ lại cái nhãn đã phân loại từ cleaning.py
+    type_df = silver_df.groupBy("property_type").agg(
+        F.first("mapping_source", ignorenulls=True).alias("mapping_source")
+    )
     
     # 2. Phân loại property_type_group dựa trên tên
     residential_keywords = [
@@ -122,14 +125,6 @@ def build_dim_property_type(silver_df: DataFrame) -> DataFrame:
     )
     
     type_df = type_df.withColumn("property_type_group", group_expr)
-    
-    # 3. Đánh dấu mapping_source
-    type_df = type_df.withColumn(
-        "mapping_source",
-        F.when(
-            F.col("property_type") == "Khác (Không xác định)", "Fallback"
-        ).otherwise("MDM Regex")
-    )
     
     # 4. Surrogate key an toàn bằng Window Function
     window_spec = Window.orderBy(F.lit(1))
