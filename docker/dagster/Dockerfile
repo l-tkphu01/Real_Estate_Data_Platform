@@ -10,3 +10,12 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+
+# Copy cấu hình Cloud vào container (thay thế cho việc nhập tay trên Azure Portal)
+COPY .env.cloud .env
+
+# Tạo thư mục DAGSTER_HOME cho Cloud (Local dùng Docker Volume nên không cần)
+RUN mkdir -p /opt/dagster/dagster_home
+
+# Lệnh khởi động mặc định khi container bật lên
+CMD ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-w", "workspace.yaml"]

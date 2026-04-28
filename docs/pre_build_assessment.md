@@ -148,3 +148,23 @@ Giai thích về các bảng dim/fact trong Data Warehouse:
 ---
 # lệnh xem dữ liệu trong quarantine
 docker exec -it real-estate-dagster-web python scripts/view_quarantine.py 
+---
+
+# lệnh kết nối vào kho: 
+docker login acrrealestateimages.azurecr.io
+
+# Đóng gói code Dagster và Superset thành 2 kiện hàng (Docker Image) và gửi lên kho.
+1. Đóng gói và đẩy Dagster
+Lệnh 1: Gói hàng (Build)
+
+docker build --provenance=false -t acrrealestateimages.azurecr.io/dagster:latest -f docker/dagster/Dockerfile .
+
+Lệnh 2: Gửi lên mây (Push)
+docker push acrrealestateimages.azurecr.io/dagster:latest
+
+2. Đóng gói và đẩy Superset
+Lệnh 3: Gói hàng (Build)
+docker build -t acrrealestateimages.azurecr.io/superset:latest -f docker/superset/Dockerfile .
+
+Lệnh 4: Gửi lên mây (Push)
+docker push acrrealestateimages.azurecr.io/superset:latest

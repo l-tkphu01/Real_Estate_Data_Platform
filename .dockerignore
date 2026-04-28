@@ -1,0 +1,13 @@
+# bỏ qua các file và thư mục sau khi build image:
+data/
+.git/
+.gitignore
+.pytest_cache/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.cloud
+notebooks/
+docs/
+tests/
