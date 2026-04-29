@@ -26,8 +26,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 def _delta_path(prefix: str, settings: Any) -> str:
     """Xây dựng đường dẫn Delta Lake linh hoạt dựa trên config driven.
-    Trên local thì lưu vào thư mục dự án, trên cloud thì dùng path từ settings.
+    Trên local thì lưu vào thư mục dự án, trên cloud (hoặc Databricks) thì dùng abfss://.
     """
+    import os
+    # Khi dùng Databricks Connect → luôn dùng đường dẫn ABFSS (Databricks chạy trên máy chủ riêng)
+    if os.getenv("DATABRICKS_HOST"):
+        return f"abfss://{settings.storage.azure_container}@{settings.azure_storage_account}.dfs.core.windows.net/{prefix}"
+    
     if "local" in settings.runtime.profile:
         # Chạy ở bất kì profile local nào cũng ghi trực tiếp xuống file disk trong volume 
         # (DeltaLake / PySpark đọc file local nhanh và ổn định hơn rất nhiều so với ABFS Azurite giả lập)
@@ -35,8 +40,8 @@ def _delta_path(prefix: str, settings: Any) -> str:
         target.parent.mkdir(parents=True, exist_ok=True)
         return str(target)
     else:
-        # Giả lập đường dẫn Cloud Azure (abfs://) dựa trên config-driven
-        return f"abfs://{settings.storage.azure_container}@{settings.azure_storage_account}.dfs.core.windows.net/{prefix}"
+        # Đường dẫn Cloud Azure (abfss://) dựa trên config-driven
+        return f"abfss://{settings.storage.azure_container}@{settings.azure_storage_account}.dfs.core.windows.net/{prefix}"
 
 
 @op(required_resource_keys={"settings", "storage"}) # Cần storage để đọc raw snapshot, settings để log và config

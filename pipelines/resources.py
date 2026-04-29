@@ -33,19 +33,21 @@ def build_spark_resource(settings: Settings) -> Any:
     - 1GB → 2GB: Scale từ 200 records (MVP) → 1000 records (scaling)
     - Đủ cho Silver/Gold transformation mà không bị JVM OOM
     """
-    from pyspark.sql import SparkSession
-    
-    # 2GB RAM limit để xử lý 1000 records bất động sản + deduplication + transformation
-    # Dùng RawLocalFileSystem để tắt hoàn toàn tính năng đẻ rác .crc của Hadoop Local Checksum file
-    builder = SparkSession.builder.appName(settings.runtime.project_name) \
-        .config("spark.driver.memory", "2g") \
-        .config("spark.executor.memory", "2g") \
-        .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
-        .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
+    import os
+    if os.getenv("DATABRICKS_HOST"):
+        from databricks.connect import DatabricksSession
+        builder = DatabricksSession.builder
+    else:
+        from pyspark.sql import SparkSession
+        builder = SparkSession.builder.appName(settings.runtime.project_name) \
+            .config("spark.driver.memory", "2g") \
+            .config("spark.executor.memory", "2g") \
+            .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+            .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
+            .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
 
     # Connect to Azurite/Azure
     acc_name = settings.azure_storage_account
