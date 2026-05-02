@@ -154,17 +154,59 @@ docker exec -it real-estate-dagster-web python scripts/view_quarantine.py
 docker login acrrealestateimages.azurecr.io
 
 # Đóng gói code Dagster và Superset thành 2 kiện hàng (Docker Image) và gửi lên kho.
-1. Đóng gói và đẩy Dagster
-Lệnh 1: Gói hàng (Build)
+# 1. Đóng gói và đẩy Dagster
+# Lệnh 1: Gói hàng (Build)
 
 docker build --provenance=false -t acrrealestateimages.azurecr.io/dagster:latest -f docker/dagster/Dockerfile .
 
-Lệnh 2: Gửi lên mây (Push)
+# Lệnh 2: Gửi lên mây (Push)
 docker push acrrealestateimages.azurecr.io/dagster:latest
 
-2. Đóng gói và đẩy Superset
-Lệnh 3: Gói hàng (Build)
+# 2. Đóng gói và đẩy Superset
+
+
+# Lệnh 3: Gói hàng (Build)
 docker build -t acrrealestateimages.azurecr.io/superset:latest -f docker/superset/Dockerfile .
 
-Lệnh 4: Gửi lên mây (Push)
+# Lệnh 4: Gửi lên mây (Push)
 docker push acrrealestateimages.azurecr.io/superset:latest
+
+# Kết Nối Power BI Desktop → Azure Data Lake Storage Gen2
+
+## Cách kết nối (Chỉ cần 2 lần Get Data):
+
+### Lần 1: Load toàn bộ Warehouse (7 bảng)
+# 1. Power BI Desktop → Get Data → Azure → Azure Data Lake Storage Gen2
+# 2. Nhập URL thư mục gốc warehouse:
+#    https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/
+# 3. Data View: chọn File System View → OK
+# 4. Authentication: Account Key → paste key từ Azure Portal
+#    (Azure Portal → Storage Account → strealestatedatalake → Access keys → copy Key1)
+# 5. Navigator hiện 7 folder con → chọn tất cả → Transform Data
+# 6. Trong Power Query, đặt tên lại từng query:
+#    - fact_listing, fact_market_snapshot
+#    - dim_location, dim_property_type, dim_price_segment, dim_area_segment, dim_time
+
+### Lần 2: Load Silver layer (cho chart AI Performance)
+# 1. Get Data → Azure Data Lake Storage Gen2
+# 2. Nhập URL:
+#    https://strealestatedatalake.dfs.core.windows.net/datalake/silver/
+# 3. Load → đặt tên: silver_listings
+
+## Danh sách URL từng bảng (nếu cần load riêng lẻ):
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/fact_listing/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/dim_location/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/dim_property_type/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/dim_price_segment/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/dim_area_segment/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/dim_time/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/warehouse/fact_market_snapshot/
+# https://strealestatedatalake.dfs.core.windows.net/datalake/silver/real_estate/
+
+## Kiểm tra kết nối thành công:
+# 1. Panel "Data" bên phải → thấy danh sách bảng với các cột bên trong = OK
+# 2. Tab "Model" (icon sơ đồ bên trái) → thấy các bảng dạng hộp = OK
+# 3. Home → Transform Data → thấy preview dữ liệu từng bảng = OK
+
+--- 
+# Tính năng cài đặt hẹn giờ refresh (tự làm tươi dữ liệu) trên Power BI Service

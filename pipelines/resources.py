@@ -38,7 +38,8 @@ def build_spark_resource(settings: Settings) -> Any:
     
     if use_databricks:
         from databricks.connect import DatabricksSession
-        builder = DatabricksSession.builder
+        builder = DatabricksSession.builder \
+            .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
     else:
         from pyspark.sql import SparkSession
         builder = SparkSession.builder.appName(settings.runtime.project_name) \
