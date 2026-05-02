@@ -34,7 +34,9 @@ def build_spark_resource(settings: Settings) -> Any:
     - Đủ cho Silver/Gold transformation mà không bị JVM OOM
     """
     import os
-    if os.getenv("DATABRICKS_HOST"):
+    use_databricks = bool(os.getenv("DATABRICKS_HOST"))
+    
+    if use_databricks:
         from databricks.connect import DatabricksSession
         builder = DatabricksSession.builder
     else:
@@ -49,13 +51,12 @@ def build_spark_resource(settings: Settings) -> Any:
             .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
             .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
 
-    # Connect to Azurite/Azure
-    acc_name = settings.azure_storage_account
-    acc_key = settings.azure_storage_key
-    if settings.azure_endpoint:
-        builder = builder.config(f"fs.azure.account.key.{acc_name}.dfs.core.windows.net", acc_key)
-        # Bổ sung custom config cho hadoop-azure chạy với Azurite nếu cần
-        # builder = builder.config("fs.azure.abfs.endpoint.suffix", ...)
+        # Azure Storage key chỉ config cho Local Spark
+        # (Databricks Cluster đã config sẵn key qua cluster settings)
+        acc_name = settings.azure_storage_account
+        acc_key = settings.azure_storage_key
+        if acc_name and acc_key:
+            builder = builder.config(f"fs.azure.account.key.{acc_name}.dfs.core.windows.net", acc_key)
         
     return builder.getOrCreate()
 

@@ -31,7 +31,7 @@ def main():
         df.select("city", "district") \
           .distinct() \
           .orderBy("city", "district") \
-          .show(50, truncate=False)
+          .show(df.count(), truncate=False)
           
     except Exception as e:
         print(f"Lỗi đọc bảng (có thể bảng chưa được tạo): {e}")

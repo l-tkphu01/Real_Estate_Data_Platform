@@ -47,17 +47,17 @@ def build_dim_location(
     # Lý do hardcode cứng: Vì miền của 10 tỉnh thành này là cố định, không thay đổi theo thời gian
     # và không thể lấy từ metadata (không có trong file config của bạn)
     region_map = {
-        "Hồ Chí Minh": "HCM",
-        "Hà Nội": "HN",
-        "Đà Nẵng": "DN",
-        "Cần Thơ": "CT",
-        "Hải Phòng": "HP",
-        "Bình Dương": "BD",
-        "Đồng Nai": "DNA",
-        "Long An": "LA",
-        "Bà Rịa - Vũng Tàu": "BRVT",
-        "Khánh Hòa": "KH",
-        # Đây chính là phần bạn cần phải cập nhật thêm nếu sau này có tỉnh thành mới
+        "Hồ Chí Minh": "Miền Nam",
+        "Hà Nội": "Miền Bắc",
+        "Đà Nẵng": "Miền Trung",
+        "Cần Thơ": "Miền Nam",
+        "Hải Phòng": "Miền Bắc",
+        "Bình Dương": "Miền Nam",
+        "Đồng Nai": "Miền Nam",
+        "Long An": "Miền Nam",
+        "Bà Rịa - Vũng Tàu": "Miền Nam",
+        "Khánh Hòa": "Miền Trung",
+        # Các tỉnh khác sẽ tự động vào nhóm "OTHER" (Chưa phân loại)
     }
     
     # Tạo map expression từ dict (VD: HỒ CHÍ MINH -> HCM, HÀ NỘI -> HN, ...)

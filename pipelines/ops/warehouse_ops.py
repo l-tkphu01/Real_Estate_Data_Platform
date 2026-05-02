@@ -34,12 +34,22 @@ from src.warehouse.delta_io import (
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _is_local_storage(settings: Any) -> bool:
+    """Kiểm tra xem có dùng local file storage hay cloud (ADLS).
+    
+    - profile='local'       → True  (chạy Docker thuần, lưu disk)
+    - profile='local.azure' → False (Dagster local nhưng storage trên Azure)
+    - profile khác           → False (full cloud)
+    """
+    return settings.runtime.profile == "local"
+
+
 def _silver_delta_path(settings: Any) -> str:
     """Lấy đường dẫn Silver Delta table dựa trên profile."""
-    if "local" in settings.runtime.profile:
+    if _is_local_storage(settings):
         return str(PROJECT_ROOT / "data" / "lakehouse" / settings.storage.silver_prefix)
     return (
-        f"abfs://{settings.storage.azure_container}"
+        f"abfss://{settings.storage.azure_container}"
         f"@{settings.azure_storage_account}.dfs.core.windows.net"
         f"/{settings.storage.silver_prefix}"
     )
@@ -47,10 +57,10 @@ def _silver_delta_path(settings: Any) -> str:
 
 def _gold_delta_path(settings: Any) -> str:
     """Lấy đường dẫn Gold Delta table dựa trên profile."""
-    if "local" in settings.runtime.profile:
+    if _is_local_storage(settings):
         return str(PROJECT_ROOT / "data" / "lakehouse" / settings.storage.gold_prefix)
     return (
-        f"abfs://{settings.storage.azure_container}"
+        f"abfss://{settings.storage.azure_container}"
         f"@{settings.azure_storage_account}.dfs.core.windows.net"
         f"/{settings.storage.gold_prefix}"
     )
@@ -63,9 +73,15 @@ def _gold_delta_path(settings: Any) -> str:
 @op(required_resource_keys={"settings", "spark"})
 def op_read_silver_for_warehouse(context) -> list[dict[str, Any]]:
     """Đọc Silver Delta table hiện có để làm nguồn cho Dimension + Fact."""
+    import os
     spark = context.resources.spark
     settings = context.resources.settings
+    
+    # Debug: In ra để trace lý do chọn sai đường dẫn
+    context.log.info(f"🔍 DEBUG: profile={settings.runtime.profile}, DATABRICKS_HOST={os.getenv('DATABRICKS_HOST')}, DATABRICKS_RUNTIME_VERSION={os.environ.get('DATABRICKS_RUNTIME_VERSION')}")
+    
     silver_path = _silver_delta_path(settings)
+    context.log.info(f"🔍 DEBUG: silver_path resolved = {silver_path}")
 
     try:
         silver_df = spark.read.format("delta").load(silver_path)

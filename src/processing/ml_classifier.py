@@ -9,14 +9,13 @@ Flow: Regex (Layer 1) → ML Model (Layer 2) → Quarantine (Layer 3)
 import logging
 import os
 import re
-from functools import lru_cache
+from functools import lru_cache # @lru_cache: viết tắt của least recently used cache. Dùng để lưu kết quả của hàm, tránh gọi lại nhiều lần.
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger(__name__) 
 # Đường dẫn mặc định tới file .pkl bundle (tương đối từ thư mục gốc dự án)
 DEFAULT_MODEL_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "models"
@@ -63,7 +62,7 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     result["price_per_bedroom"] = np.where(result["bedrooms_int"] > 0, result["price_double"] / result["bedrooms_int"], 0)
     result["area_per_bedroom"] = np.where(result["bedrooms_int"] > 0, result["area_double"] / result["bedrooms_int"], 0)
 
-    # Soft price signal
+    # Soft price signal (tạo tín hiệu gợi ý giá, giúp AI nhận diện nhanh loại hình thuê/cho thuê dựa trên giá tiền)
     result["price_hint_rent"] = result["price_double"].between(1, 500_000_000).astype(int)
 
     # BĐS domain features

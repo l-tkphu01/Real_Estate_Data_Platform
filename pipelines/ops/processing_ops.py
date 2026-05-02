@@ -29,8 +29,8 @@ def _delta_path(prefix: str, settings: Any) -> str:
     Trên local thì lưu vào thư mục dự án, trên cloud (hoặc Databricks) thì dùng abfss://.
     """
     import os
-    # Khi dùng Databricks Connect → luôn dùng đường dẫn ABFSS (Databricks chạy trên máy chủ riêng)
-    if os.getenv("DATABRICKS_HOST"):
+    # Khi dùng Databricks Connect hoặc Databricks Cluster → luôn dùng đường dẫn ABFSS
+    if os.getenv("DATABRICKS_HOST") or "DATABRICKS_RUNTIME_VERSION" in os.environ:
         return f"abfss://{settings.storage.azure_container}@{settings.azure_storage_account}.dfs.core.windows.net/{prefix}"
     
     if "local" in settings.runtime.profile:
@@ -220,13 +220,26 @@ def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[st
     # Ghi log 10 dòng mẫu ra Dagster UI để kiểm chứng
     context.log.info("🏙️ KẾT QUẢ SAMPLE 10 DÒNG (ĐÃ MAPPED THÀNH CÔNG):")
     if "mapping_source" in cleaned_df.columns:
-        sample_rows = cleaned_df.select("property_id", "title", "property_type", "city", "district", "mapping_source").limit(10).collect()
+        # Include listing_type nếu có
+        select_cols = ["property_id", "title", "property_type", "city", "district", "mapping_source"]
+        if "listing_type" in cleaned_df.columns:
+            select_cols.append("listing_type")
+        sample_rows = cleaned_df.select(*select_cols).limit(10).collect()
         for row in sample_rows:
-            context.log.info(f"[SAMPLE] Title: '{row.title}' -> Type: {row.property_type} [{row.mapping_source}] | Loc: {row.city} - {row.district}")
+            lt_info = f" | Listing: {row.listing_type}" if hasattr(row, "listing_type") else ""
+            context.log.info(f"[SAMPLE] Title: '{row.title}' -> Type: {row.property_type} [{row.mapping_source}]{lt_info} | Loc: {row.city} - {row.district}")
+
+    # === BÁO CÁO ML LISTING TYPE ===
+    if "listing_type" in cleaned_df.columns:
+        lt_stats = cleaned_df.groupBy("listing_type").count().collect()
+        lt_total = sum(r["count"] for r in lt_stats)
+        context.log.info(f"🏷️ BÁO CÁO ML LISTING TYPE ({lt_total} bản ghi):")
+        for row in lt_stats:
+            pct = round((row["count"] / lt_total) * 100, 1) if lt_total > 0 else 0
+            context.log.info(f"  🏷️ {row['listing_type']}: {row['count']} tin ({pct}%)")
         
-    # Xoá cột tracking dọn rác trước khi xuất kho
-    if "mapping_source" in cleaned_df.columns:
-        cleaned_df = cleaned_df.drop("mapping_source")
+    # Không drop mapping_source vì dim_property_type cần dùng nó
+    pass
         
     return [row.asDict() for row in cleaned_df.collect()]
 

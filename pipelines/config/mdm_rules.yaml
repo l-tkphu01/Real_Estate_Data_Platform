@@ -19,9 +19,39 @@ mdm:
     "Hồ Chí Minh": ["HCM", "Sài Gòn", "TP.HCM", "SG", "Thành phố Hồ Chí Minh", "Tp Hồ Chí Minh"]
     "Hà Nội": ["HN", "Thủ Đô", "TP.HN", "Hanoi", "Tp Hà Nội"]
     "Long An": ["LA", "Long An"]
+    "Đà Nẵng": ["ĐN", "Đà Nẵng", "Tp Đà Nẵng"]
+    "Bình Dương": ["BD", "Bình Dương"]
+    "Đồng Nai": ["Đồng Nai"]
+    "Bà Rịa - Vũng Tàu": ["BRVT", "Bà Rịa Vũng Tàu", "Vũng Tàu", "Bà Rịa - Vũng Tàu"]
+    "Bình Thuận": ["Bình Thuận"]
+    "Khánh Hòa": ["Khánh Hòa", "Nha Trang"]
+    "Lâm Đồng": ["Lâm Đồng", "Đà Lạt"]
+    "Cần Thơ": ["CT", "Cần Thơ"]
+    "Hải Phòng": ["HP", "Hải Phòng"]
+    "Bình Phước": ["Bình Phước"]
+    "Bình Định": ["Bình Định"]
+    "Tây Ninh": ["Tây Ninh"]
+    "Đắk Lắk": ["Đắk Lắk", "Đak Lắk", "Dak Lak"]
+    "Đắk Nông": ["Đắk Nông", "Dak Nong"]
+    "Gia Lai": ["Gia Lai"]
+    "Quảng Nam": ["Quảng Nam"]
+    "Bắc Ninh": ["Bắc Ninh"]
+    "Hải Dương": ["Hải Dương"]
+    "Hưng Yên": ["Hưng Yên"]
+    "Tiền Giang": ["Tiền Giang"]
+    "Bến Tre": ["Bến Tre"]
+    "Vĩnh Long": ["Vĩnh Long"]
+    "Kiên Giang": ["Kiên Giang", "Phú Quốc"]
+    "An Giang": ["An Giang"]
+    "Lào Cai": ["Lào Cai"]
+    "Thái Bình": ["Thái Bình"]
+    "Thái Nguyên": ["Thái Nguyên"]
+    "Đồng Tháp": ["Đồng Tháp"]
 
   district_mapping:
-    # --- Hồ Chí Minh ---
+    # ═══════════════════════════════════════
+    # HỒ CHÍ MINH
+    # ═══════════════════════════════════════
     "Quận 1": ["Q1", "Q.1", "Quận Nhất", "Quận 1"]
     "Quận 2": ["Q2", "Q.2", "Quận Hai", "Quận 2", "Thành phố Thủ Đức"]
     "Quận 3": ["Q3", "Q.3", "Quận Ba", "Quận 3"]
@@ -42,15 +72,179 @@ mdm:
     "Quận Gò Vấp": ["Gò Vấp", "Quận Gò Vấp"]
     "Quận Phú Nhuận": ["Phú Nhuận", "Quận Phú Nhuận"]
     "Huyện Hóc Môn": ["Hóc Môn", "Huyện Hóc Môn"]
+    "Huyện Bình Chánh": ["Bình Chánh", "Huyện Bình Chánh"]
+    "Huyện Nhà Bè": ["Nhà Bè", "Huyện Nhà Bè"]
+    "Huyện Củ Chi": ["Củ Chi", "Huyện Củ Chi"]
+    "Huyện Cần Giờ": ["Cần Giờ", "Huyện Cần Giờ"]
 
-    # --- Hà Nội ---
+    # ═══════════════════════════════════════
+    # HÀ NỘI
+    # ═══════════════════════════════════════
     "Quận Cầu Giấy": ["Cầu Giấy", "Quận Cầu Giấy"]
     "Quận Hoàng Mai": ["Hoàng Mai", "Quận Hoàng Mai"]
     "Quận Đống Đa": ["Đống Đa", "Quận Đống Đa"]
     "Quận Bắc Từ Liêm": ["Bắc Từ Liêm", "Quận Bắc Từ Liêm"]
+    "Quận Ba Đình": ["Ba Đình", "Quận Ba Đình"]
+    "Quận Hai Bà Trưng": ["Hai Bà Trưng", "Quận Hai Bà Trưng"]
+    "Quận Hoàn Kiếm": ["Hoàn Kiếm", "Quận Hoàn Kiếm"]
+    "Quận Hà Đông": ["Hà Đông", "Quận Hà Đông"]
+    "Quận Long Biên": ["Long Biên", "Quận Long Biên"]
+    "Quận Nam Từ Liêm": ["Nam Từ Liêm", "Quận Nam Từ Liêm"]
+    "Quận Thanh Xuân": ["Thanh Xuân", "Quận Thanh Xuân"]
+    "Quận Tây Hồ": ["Tây Hồ", "Quận Tây Hồ"]
+    "Huyện Chương Mỹ": ["Chương Mỹ", "Huyện Chương Mỹ"]
+    "Huyện Gia Lâm": ["Gia Lâm", "Huyện Gia Lâm"]
+    "Huyện Sóc Sơn": ["Sóc Sơn", "Huyện Sóc Sơn"]
+    "Huyện Thanh Trì": ["Thanh Trì", "Huyện Thanh Trì"]
+    "Huyện Thường Tín": ["Thường Tín", "Huyện Thường Tín"]
+    "Huyện Đông Anh": ["Đông Anh", "Huyện Đông Anh"]
 
-    # --- Long An ---
+    # ═══════════════════════════════════════
+    # ĐÀ NẴNG
+    # ═══════════════════════════════════════
+    "Quận Cẩm Lệ": ["Cẩm Lệ", "Quận Cẩm Lệ"]
+    "Quận Hải Châu": ["Hải Châu", "Quận Hải Châu"]
+    "Quận Liên Chiểu": ["Liên Chiểu", "Quận Liên Chiểu"]
+    "Quận Ngũ Hành Sơn": ["Ngũ Hành Sơn", "Quận Ngũ Hành Sơn"]
+    "Quận Sơn Trà": ["Sơn Trà", "Quận Sơn Trà"]
+    "Quận Thanh Khê": ["Thanh Khê", "Quận Thanh Khê"]
+
+    # ═══════════════════════════════════════
+    # BÌNH DƯƠNG
+    # ═══════════════════════════════════════
+    "Thành phố Thủ Dầu Một": ["Thủ Dầu Một", "Thành phố Thủ Dầu Một"]
+    "Thành phố Dĩ An": ["Dĩ An", "Thành phố Dĩ An"]
+    "Thành phố Thuận An": ["Thuận An", "Thành phố Thuận An"]
+    "Thị xã Bến Cát": ["Bến Cát", "Thị xã Bến Cát"]
+    "Thị xã Tân Uyên": ["Tân Uyên", "Thị xã Tân Uyên"]
+    "Huyện Bàu Bàng": ["Bàu Bàng", "Huyện Bàu Bàng"]
+    "Huyện Phú Giáo": ["Phú Giáo", "Huyện Phú Giáo"]
+
+    # ═══════════════════════════════════════
+    # ĐỒNG NAI
+    # ═══════════════════════════════════════
+    "Thành phố Biên Hòa": ["Biên Hòa", "Thành phố Biên Hòa"]
+    "Thành phố Long Khánh": ["Long Khánh", "Thành phố Long Khánh"]
+    "Huyện Long Thành": ["Long Thành", "Huyện Long Thành"]
+    "Huyện Nhơn Trạch": ["Nhơn Trạch", "Huyện Nhơn Trạch"]
+    "Huyện Trảng Bom": ["Trảng Bom", "Huyện Trảng Bom"]
+    "Huyện Vĩnh Cửu": ["Vĩnh Cửu", "Huyện Vĩnh Cửu"]
+    "Huyện Xuân Lộc": ["Xuân Lộc", "Huyện Xuân Lộc"]
+    "Huyện Thống Nhất": ["Thống Nhất", "Huyện Thống Nhất"]
+    "Huyện Định Quán": ["Định Quán", "Huyện Định Quán"]
+
+    # ═══════════════════════════════════════
+    # BÀ RỊA - VŨNG TÀU
+    # ═══════════════════════════════════════
+    "Thành phố Bà Rịa": ["Bà Rịa", "Thành phố Bà Rịa"]
+    "Thị xã Phú Mỹ": ["Phú Mỹ", "Thị xã Phú Mỹ"]
+    "Huyện Châu Đức": ["Châu Đức", "Huyện Châu Đức"]
+
+    # ═══════════════════════════════════════
+    # LONG AN
+    # ═══════════════════════════════════════
     "Huyện Đức Hòa": ["Huyện Đức Hòa", "Đức Hòa"]
+    "Huyện Bến Lức": ["Bến Lức", "Huyện Bến Lức"]
+    "Huyện Cần Giuộc": ["Cần Giuộc", "Huyện Cần Giuộc"]
+    "Huyện Cần Đước": ["Cần Đước", "Huyện Cần Đước"]
+    "Huyện Thủ Thừa": ["Thủ Thừa", "Huyện Thủ Thừa"]
+    "Huyện Tân Trụ": ["Tân Trụ", "Huyện Tân Trụ"]
+    "Thành phố Tân An": ["Tân An", "Thành phố Tân An"]
+
+    # ═══════════════════════════════════════
+    # BÌNH THUẬN
+    # ═══════════════════════════════════════
+    "Thành phố Phan Thiết": ["Phan Thiết", "Thành phố Phan Thiết"]
+    "Huyện Bắc Bình": ["Bắc Bình", "Huyện Bắc Bình"]
+    "Huyện Hàm Tân": ["Hàm Tân", "Huyện Hàm Tân"]
+    "Huyện Tuy Phong": ["Tuy Phong", "Huyện Tuy Phong"]
+    "Huyện Tánh Linh": ["Tánh Linh", "Huyện Tánh Linh"]
+    "Huyện Đức Linh": ["Đức Linh", "Huyện Đức Linh"]
+
+    # ═══════════════════════════════════════
+    # BÌNH PHƯỚC
+    # ═══════════════════════════════════════
+    "Huyện Chơn Thành": ["Chơn Thành", "Huyện Chơn Thành"]
+    "Huyện Đồng Phú": ["Đồng Phú", "Huyện Đồng Phú"]
+    "Thị xã Bình Long": ["Bình Long", "Thị xã Bình Long"]
+
+    # ═══════════════════════════════════════
+    # CẦN THƠ
+    # ═══════════════════════════════════════
+    "Quận Ninh Kiều": ["Ninh Kiều", "Quận Ninh Kiều"]
+    "Quận Bình Thuỷ": ["Bình Thuỷ", "Quận Bình Thuỷ"]
+    "Quận Cái Răng": ["Cái Răng", "Quận Cái Răng"]
+    "Huyện Phong Điền": ["Phong Điền", "Huyện Phong Điền"]
+
+    # ═══════════════════════════════════════
+    # KHÁNH HÒA
+    # ═══════════════════════════════════════
+    "Thành phố Nha Trang": ["Nha Trang", "Thành phố Nha Trang"]
+    "Huyện Cam Lâm": ["Cam Lâm", "Huyện Cam Lâm"]
+
+    # ═══════════════════════════════════════
+    # LÂM ĐỒNG
+    # ═══════════════════════════════════════
+    "Thành phố Đà Lạt": ["Đà Lạt", "Thành phố Đà Lạt"]
+    "Huyện Bảo Lâm": ["Bảo Lâm", "Huyện Bảo Lâm"]
+
+    # ═══════════════════════════════════════
+    # HẢI PHÒNG
+    # ═══════════════════════════════════════
+    "Huyện An Dương": ["An Dương", "Huyện An Dương"]
+    "Huyện An Lão": ["An Lão", "Huyện An Lão"]
+
+    # ═══════════════════════════════════════
+    # TÂY NINH
+    # ═══════════════════════════════════════
+    "Thành phố Tây Ninh": ["Thành phố Tây Ninh"]
+    "Huyện Gò Dầu": ["Gò Dầu", "Huyện Gò Dầu"]
+    "Huyện Hòa Thành": ["Hòa Thành", "Huyện Hòa Thành"]
+    "Huyện Trảng Bàng": ["Trảng Bàng", "Huyện Trảng Bàng"]
+
+    # ═══════════════════════════════════════
+    # CÁC TỈNH KHÁC
+    # ═══════════════════════════════════════
+    # An Giang
+    "Thành phố Long Xuyên": ["Long Xuyên", "Thành phố Long Xuyên"]
+    "Thị xã Tân Châu": ["Tân Châu", "Thị xã Tân Châu"]
+    # Bình Định
+    "Thành phố Qui Nhơn": ["Qui Nhơn", "Quy Nhơn", "Thành phố Qui Nhơn"]
+    # Bắc Ninh
+    "Thành phố Bắc Ninh": ["Thành phố Bắc Ninh"]
+    "Huyện Tiên Du": ["Tiên Du", "Huyện Tiên Du"]
+    # Bến Tre
+    "Huyện Châu Thành": ["Châu Thành", "Huyện Châu Thành"]
+    "Huyện Mỏ Cày Nam": ["Mỏ Cày Nam", "Huyện Mỏ Cày Nam"]
+    # Gia Lai
+    "Thành phố Pleiku": ["Pleiku", "Thành phố Pleiku"]
+    # Hải Dương
+    "Huyện Nam Sách": ["Nam Sách", "Huyện Nam Sách"]
+    # Hưng Yên
+    "Huyện Văn Giang": ["Văn Giang", "Huyện Văn Giang"]
+    # Kiên Giang
+    "Thành phố Phú Quốc": ["Phú Quốc", "Thành phố Phú Quốc"]
+    # Lào Cai
+    "Huyện Bảo Thắng": ["Bảo Thắng", "Huyện Bảo Thắng"]
+    # Quảng Nam
+    "Thành phố Hội An": ["Hội An", "Thành phố Hội An"]
+    "Thị xã Điện Bàn": ["Điện Bàn", "Thị xã Điện Bàn"]
+    # Thái Bình
+    "Huyện Đông Hưng": ["Đông Hưng", "Huyện Đông Hưng"]
+    # Thái Nguyên
+    "Thị xã Phổ Yên": ["Phổ Yên", "Thị xã Phổ Yên"]
+    # Tiền Giang
+    "Huyện Gò Công Tây": ["Gò Công Tây", "Huyện Gò Công Tây"]
+    "Thị xã Gò Công": ["Gò Công", "Thị xã Gò Công"]
+    # Vĩnh Long
+    "Thành phố Vĩnh Long": ["Thành phố Vĩnh Long"]
+    "Thị xã Bình Minh": ["Bình Minh", "Thị xã Bình Minh"]
+    "Huyện Bình Tân": ["Huyện Bình Tân"]
+    # Đắk Lắk
+    "Thành phố Buôn Ma Thuột": ["Buôn Ma Thuột", "Thành phố Buôn Ma Thuột"]
+    "Thị Xã Buôn Hồ": ["Buôn Hồ", "Thị Xã Buôn Hồ"]
+    # Đắk Nông
+    "Huyện Tuy Đức": ["Tuy Đức", "Huyện Tuy Đức"]
 
   # Từ điển các loại hình BĐS gộp từ vựng 
   property_type_mapping:

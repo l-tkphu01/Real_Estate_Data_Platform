@@ -24,15 +24,15 @@ def _warehouse_path(table_name: str, settings: Any) -> str:
     """Xây dựng đường dẫn Delta cho bảng warehouse dựa trên profile.
     
     Trên local: data/lakehouse/warehouse/<table_name>
-    Trên cloud: abfs://<container>@<account>/<warehouse_prefix>/<table_name>
+    Trên cloud: abfss://<container>@<account>/<warehouse_prefix>/<table_name>
     """
-    if "local" in settings.runtime.profile:
+    if settings.runtime.profile == "local":
         target = PROJECT_ROOT / "data" / "lakehouse" / WAREHOUSE_PREFIX / table_name
         target.parent.mkdir(parents=True, exist_ok=True)
         return str(target)
     else:
         return (
-            f"abfs://{settings.storage.azure_container}"
+            f"abfss://{settings.storage.azure_container}"
             f"@{settings.azure_storage_account}.dfs.core.windows.net"
             f"/{WAREHOUSE_PREFIX}/{table_name}"
         )

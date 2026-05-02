@@ -31,4 +31,6 @@ data/lakehouse/
 *.crc
 _delta_log/
 
-
+# Large binary wheels (quá 100MB, GitHub không cho push)
+docker/dagster/wheels/
+*.tar.gz
