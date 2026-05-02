@@ -101,6 +101,10 @@ def build_dim_property_type(silver_df: DataFrame) -> DataFrame:
     """
     # 1. Lấy danh sách unique property_type kèm theo mapping_source từ Silver
     # Dùng groupBy và lấy first để giữ lại cái nhãn đã phân loại từ cleaning.py
+    # Backward-compatible: nếu Silver cũ chưa có cột mapping_source thì tạo mặc định
+    if "mapping_source" not in silver_df.columns:
+        silver_df = silver_df.withColumn("mapping_source", F.lit("Unknown"))
+    
     type_df = silver_df.groupBy("property_type").agg(
         F.first("mapping_source", ignorenulls=True).alias("mapping_source")
     )
