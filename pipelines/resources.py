@@ -33,26 +33,31 @@ def build_spark_resource(settings: Settings) -> Any:
     - 1GB → 2GB: Scale từ 200 records (MVP) → 1000 records (scaling)
     - Đủ cho Silver/Gold transformation mà không bị JVM OOM
     """
-    from pyspark.sql import SparkSession
+    import os
+    use_databricks = bool(os.getenv("DATABRICKS_HOST"))
     
-    # 2GB RAM limit để xử lý 1000 records bất động sản + deduplication + transformation
-    # Dùng RawLocalFileSystem để tắt hoàn toàn tính năng đẻ rác .crc của Hadoop Local Checksum file
-    builder = SparkSession.builder.appName(settings.runtime.project_name) \
-        .config("spark.driver.memory", "2g") \
-        .config("spark.executor.memory", "2g") \
-        .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
-        .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
-        .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
-        .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+    if use_databricks:
+        from databricks.connect import DatabricksSession
+        builder = DatabricksSession.builder \
+            .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
+    else:
+        from pyspark.sql import SparkSession
+        builder = SparkSession.builder.appName(settings.runtime.project_name) \
+            .config("spark.driver.memory", "2g") \
+            .config("spark.executor.memory", "2g") \
+            .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.1.0,org.apache.hadoop:hadoop-azure:3.3.4") \
+            .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
+            .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem") \
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.marksuccessfuljobs", "false") \
+            .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
 
-    # Connect to Azurite/Azure
-    acc_name = settings.azure_storage_account
-    acc_key = settings.azure_storage_key
-    if settings.azure_endpoint:
-        builder = builder.config(f"fs.azure.account.key.{acc_name}.dfs.core.windows.net", acc_key)
-        # Bổ sung custom config cho hadoop-azure chạy với Azurite nếu cần
-        # builder = builder.config("fs.azure.abfs.endpoint.suffix", ...)
+        # Azure Storage key chỉ config cho Local Spark
+        # (Databricks Cluster đã config sẵn key qua cluster settings)
+        acc_name = settings.azure_storage_account
+        acc_key = settings.azure_storage_key
+        if acc_name and acc_key:
+            builder = builder.config(f"fs.azure.account.key.{acc_name}.dfs.core.windows.net", acc_key)
         
     return builder.getOrCreate()
 

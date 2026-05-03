@@ -1,25 +1,32 @@
-runtime: # Chạy trên môi trường Azure, sử dụng Azure Storage để lưu trữ dữ liệu và cấu hình chung cho dự án
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Cấu hình Gốc (Core Configuration)
+# FILE: base.yaml 
+# DESCRIPTION: Chứa các tham số nền tảng, gốc rễ của dự án.
+#              Luôn được nạp đầu tiên và làm màng bảo vệ fallback data.
+# ─────────────────────────────────────────────────────────────────
+
+runtime:
   project_name: real-estate-data-platform
   dagster_home: /opt/dagster/dagster_home
-  superset_secret_key: "" # MUST BE PROVIDED BY .ENV
+  superset_secret_key: ""  # PHẢI được cung cấp qua .env
 
-logging: # Cấu hình logging chung cho tất cả các môi trường, có thể được override trong các profile cụ thể  
+logging:
   level: INFO
   fmt: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 
 storage:
-  azure_container: real-estate-platform # Tên container Azure Storage dùng chung cho tất cả các môi trường
-  azure_storage_account: devstoreaccount1 # Tên tài khoản Azure Storage dùng cho Dev, cần được override trong profile Azure thực tế
-  azure_storage_key: "" # MUST BE PROVIDED BY .ENV
+  azure_container: real-estate-platform
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: ""  # PHẢI được cung cấp qua .env
   azure_endpoint: null
   raw_prefix: raw/real_estate
-  bronze_prefix: bronze/real_estate 
+  bronze_prefix: bronze/real_estate
   silver_prefix: silver/real_estate
   gold_prefix: gold/real_estate
-  cdc_state_prefix: state/cdc # Prefix lưu trạng thái CDC, có thể được override nếu cần thiết
+  cdc_state_prefix: state/cdc
 
 ingestion:
-  data_source_url: https://example.com/api/properties
+  data_source_url: https://gateway.chotot.com/v1/public/ad-listing
   request_timeout_seconds: 30
   ingestion_max_retries: 3
   ingestion_backoff_seconds: 2
@@ -27,5 +34,17 @@ ingestion:
   pages_per_batch: 5
   batch_delay_seconds: 2.0
   semaphore_size: 3
-  categories: [1000]  # Default: chỉ cào bất động sán (1000)
-  pages_per_category: 10  # Số trang/category
+
+cdc:
+  id_field: property_id # Field duy nhất để biết bản ghi nào đang được xử lý
+  hash_fields: # Field được sử dụng để tạo mã băm (hash)
+    - property_id
+    - title
+    - price 
+    - area_sqm
+  state_filename: fingerprints.json # Tên file lưu trữ trạng thái
+  hash_algorithm: md5 # Ưu tiên MD5 vì tốc độ băm nhanh, phù hợp so sánh nội dung không có rủi ro bảo mật (sha256/sha1 vẫn hỗ trợ) 
+
+  # Lưu ý khi đổi mã băm: 
+  # - Nếu đổi hash_algorithm: Cần phải xóa file fingerprints.json cũ để hệ thống tính toán lại từ đầu.
+  # - Nếu đổi hash_fields: Cần phải xóa file fingerprints.json cũ để hệ thống tính toán lại từ đầu.

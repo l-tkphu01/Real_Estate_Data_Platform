@@ -1,3 +1,8 @@
-# Dùng profile này khi chạy Cloud trực tiếp Azure ADLS Gen2.
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Môi trường Local kết nối Cloud (Local to Cloud)
+# FILE: local.azure.yaml
+# DESCRIPTION: Profile trỏ trực tiếp lên Azure Cloud thật để Test.
+# USAGE: APP_PROFILE=local.azure python -m dagster dev
+# ─────────────────────────────────────────────────────────────────
 storage:
   azure_endpoint: null

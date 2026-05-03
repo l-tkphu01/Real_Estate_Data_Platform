@@ -44,9 +44,9 @@ def transform_for_gold(df: DataFrame) -> DataFrame:
     # Nhóm dữ liệu Group By và Aggregate
     gold_df = df.groupBy("city", "district").agg(
         F.count("*").alias("listing_count"),
-        F.round(F.sum("price") / F.count("*"), 2).alias("avg_price"),
-        F.round(F.sum("area_sqm") / F.count("*"), 2).alias("avg_area_sqm"),
-        F.round(F.sum("price_per_sqm") / F.count("*"), 2).alias("avg_price_per_sqm"),
+        F.round(F.avg("price"), 2).alias("avg_price"),
+        F.round(F.avg("area_sqm"), 2).alias("avg_area_sqm"),
+        F.round(F.avg("price_per_sqm"), 2).alias("avg_price_per_sqm"),
         F.round(F.expr("percentile_approx(price, 0.5)"), 2).alias("median_price"),
         F.round(F.expr("percentile_approx(price, 0.9)"), 2).alias("p90_price"),
         F.round(F.expr("percentile_approx(price_per_sqm, 0.9)"), 2).alias("p90_price_per_sqm"),

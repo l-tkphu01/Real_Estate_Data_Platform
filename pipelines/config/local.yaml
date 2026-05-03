@@ -1,0 +1,23 @@
+# ─────────────────────────────────────────────────────────────────
+# ROLE: Môi trường Phát triển Local (Development Environment)
+# FILE: local.yaml
+# DESCRIPTION: Profile mô phỏng kết nối cục bộ (Azurite Emulator).
+# USAGE: 
+#   APP_PROFILE=local docker compose up
+# ─────────────────────────────────────────────────────────────────
+runtime:
+  dagster_home: /opt/dagster/dagster_home
+
+storage:
+  # Kết nối Azurite từ bên trong mạng lưới Docker Compose
+  azure_endpoint: http://azurite:10000/devstoreaccount1
+  azure_storage_account: devstoreaccount1
+  azure_storage_key: ""  # Được ghi đè bởi .env
+
+ingestion:
+  # Cào 50 trang BĐS (1000 records) với batching an toàn
+  data_source_url: https://gateway.chotot.com/v1/public/ad-listing
+  max_pages: 50
+  pages_per_batch: 5
+  batch_delay_seconds: 2.0
+  semaphore_size: 3

@@ -1,8 +1,0 @@
-runtime:
-  dagster_home: /opt/dagster/dagster_home
-
-storage:
-  # Cấu hình kết nối Azurite tại localhost dành cho môi trường dev
-  azure_endpoint: http://127.0.0.1:10000/devstoreaccount1
-  azure_storage_account: devstoreaccount1
-  azure_storage_key: ""  # Được ghi đè bởi cấu hình trong .env (tính bảo mật)

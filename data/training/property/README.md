@@ -2,7 +2,7 @@
 
 Thư mục này chứa dữ liệu huấn luyện cho **AI model dự báo giá nhà đất**.
 
-## Cước Chạy
+## Bước Chạy
 
 ```bash
 # 1. Chuyển sang single-category mode
