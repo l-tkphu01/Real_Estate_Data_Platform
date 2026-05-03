@@ -63,6 +63,7 @@ services:
     volumes:
       - ./docker/superset:/app/pythonpath
       - superset_home:/app/superset_home
+      - ./data:/app/data
     ports:
       - "8088:8088"
     command: >
@@ -70,7 +71,7 @@ services:
       superset db upgrade &&
       superset fab create-admin --username admin --firstname Admin --lastname User --email admin@example.com --password admin || true &&
       superset init &&
-      superset run -h 0.0.0.0 -p 8088
+      gunicorn --workers 1 --threads 1 --timeout 120 -b 0.0.0.0:8088 'superset.app:create_app()'
       "
     depends_on:
       azurite:

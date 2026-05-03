@@ -10,6 +10,17 @@ from src.config import load_settings
 DEFAULT_LOG_FORMAT = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 
 
+def _validate_log_format(fmt: str) -> None:
+    """Validate logging format string giống cách logging.Formatter() sử dụng.
+    
+    Raise ValueError nếu format string có syntax lỗi.
+    """
+    try:
+        logging.Formatter(fmt)
+    except Exception as e:
+        raise ValueError(f"Invalid logging format string: {fmt}. Error: {e}") from e
+
+
 def setup_logging(level: str | None = None) -> None:
     """Cấu hình log format và log level chuẩn cho toàn bộ services.
 
@@ -26,5 +37,8 @@ def setup_logging(level: str | None = None) -> None:
             resolved_format = settings.logging.fmt
         except Exception:
             resolved_level = "INFO"
+
+    # Validate format string before using it
+    _validate_log_format(resolved_format)
 
     logging.basicConfig(level=resolved_level.upper(), format=resolved_format, force=True)
