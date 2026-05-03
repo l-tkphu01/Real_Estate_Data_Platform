@@ -110,7 +110,7 @@ Mô-đun `ml_classifier.py` là "Bộ não AI" của pipeline, được gọi sa
 
 ### Sơ đồ ERD (Entity Relationship Diagram)
 
-![Star Schema ERD](./docs/images/star_schema.png)
+![Star Schema ERD](./docs/images/Star_schema.png)
 
 ### Chi tiết bảng:
 | Bảng | Loại | Mô tả |
