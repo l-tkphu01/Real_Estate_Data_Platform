@@ -1,4 +1,4 @@
-"""Export Quarantine data ra CSV để import vào Superset."""
+﻿"""Export Quarantine data ra CSV để import vào Superset."""
 from pyspark.sql import SparkSession
 import os
 
@@ -20,9 +20,9 @@ if os.path.exists(quarantine_path):
     
     os.makedirs("/opt/dagster/app/data/exports", exist_ok=True)
     df.toPandas().to_csv(output_csv, index=False, encoding="utf-8-sig")
-    print(f"✅ Exported → {output_csv}")
+    print(f"Exported → {output_csv}")
 else:
-    print("❌ Quarantine chưa tồn tại")
+    print("Quarantine chưa tồn tại")
 
 # Export Silver (UNKNOWN listing_type)
 silver_path = "/opt/dagster/app/data/lakehouse/silver/real_estate"
@@ -35,6 +35,6 @@ if os.path.exists(silver_path):
         count = unknown_df.count()
         print(f"❓ Unknown listing_type: {count} bản ghi")
         unknown_df.toPandas().to_csv(output_unknown, index=False, encoding="utf-8-sig")
-        print(f"✅ Exported → {output_unknown}")
+        print(f"Exported → {output_unknown}")
 
 spark.stop()

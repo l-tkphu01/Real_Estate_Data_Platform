@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # NOTEBOOK 1 (COLAB v3.1 – FINAL EDITION): CHUẨN BỊ DATA & FEATURE ENGINEERING
 # ==============================================================================
 # Bản hoàn chỉnh cuối cùng – Đã vá toàn bộ lỗ hổng từ 3 vòng review
@@ -12,7 +12,7 @@ try:
 except ImportError:
     colab_files = None
 
-print("✅ Đã load thư viện (Final Edition v3.1)!")
+print("Đã load thư viện (Final Edition v3.1)!")
 
 # ══════════════════════════════════════════════════════════════
 # BƯỚC 1: UPLOAD DATA (Hỗ trợ: Raw JSON, Parquet, CSV — nhiều file cùng lúc)
@@ -63,15 +63,15 @@ try:
         try:
             tmp = read_one_file(fname)
             all_dfs.append(tmp)
-            print(f"  ✅ {fname}: {len(tmp)} bản ghi")
+            print(f"  {fname}: {len(tmp)} bản ghi")
         except Exception as e:
-            print(f"  ❌ {fname}: Lỗi - {e}")
+            print(f"  {fname}: Lỗi - {e}")
 
     df = pd.concat(all_dfs, ignore_index=True)
     print(f"\n📦 TỔNG CỘNG: {len(df)} bản ghi từ {len(all_dfs)} file.")
 
 except Exception as e:
-    print(f"⚠️ Chạy giả lập: {e}")
+    print(f"Chạy giả lập: {e}")
     df = pd.DataFrame([
         {"property_id":"1","title":"Bán nhà mặt tiền Lê Văn Sỹ Q3 5x20m SHR","source_category":"Nhà ở","price":8.5e9,"area_sqm":100,"bedrooms":4,"city":"Tp Hồ Chí Minh","district":"Quận 3"},
         {"property_id":"2","title":"Phòng trọ mới xây gần ĐH Hutech có ban công","source_category":"Phòng trọ","price":3.5e6,"area_sqm":20,"bedrooms":np.nan,"city":"Tp Hồ Chí Minh","district":"Quận Bình Thạnh"},
@@ -158,7 +158,7 @@ df["listing_confidence"] = results[1]
 
 print(f"\n🏷️ LISTING TYPE (trước khi lọc):")
 print(df["listing_type"].value_counts().to_string())
-print(f"⚠️ Bản ghi UNKNOWN (không chắc chắn): {(df['listing_type'] == 'UNKNOWN').sum()}")
+print(f"Bản ghi UNKNOWN (không chắc chắn): {(df['listing_type'] == 'UNKNOWN').sum()}")
 
 # ══════════════════════════════════════════════════════════════
 # BƯỚC 6: GÁN NHÃN PROPERTY_TYPE (Context Filter + Priority)
@@ -236,7 +236,7 @@ df["is_missing_price"]   = ((df["price_double"] == 0) | df["price"].isna()).asty
 # --- Interaction Feature bổ sung ---
 df["area_per_bedroom"] = np.where(df["bedrooms_int"] > 0, df["area_double"] / df["bedrooms_int"], 0)
 
-# ⚠️ LƯU Ý: KHÔNG tính district_avg_price ở đây!
+# LƯU Ý: KHÔNG tính district_avg_price ở đây!
 # Vì nếu tính trên toàn bộ dataset → Data Leakage (test data rò rỉ vào train)
 # Feature này sẽ được tính BÊN TRONG Notebook 2 SAU KHI split train/test
 
@@ -275,8 +275,8 @@ print("="*65)
 
 print(f"\n📦 Tổng bản ghi gốc (Bronze):      {before_count}")
 print(f"🧹 Sau lọc Spam/Trùng/Outlier:      {len(df)}")
-print(f"✅ Bản ghi CHẤT LƯỢNG CAO (Train):   {len(df_train)}")
-print(f"❌ Bản ghi bị loại (UNKNOWN/LOW):    {len(df) - len(df_train)}")
+print(f"Bản ghi CHẤT LƯỢNG CAO (Train):   {len(df_train)}")
+print(f"Bản ghi bị loại (UNKNOWN/LOW):    {len(df) - len(df_train)}")
 
 print(f"\n🏷️ PROPERTY TYPE:")
 print(df_train["property_type"].value_counts().to_string())

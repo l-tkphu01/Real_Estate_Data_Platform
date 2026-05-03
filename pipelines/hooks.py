@@ -17,7 +17,7 @@ def _send_email(subject: str, body: str, context: HookContext) -> bool:
     password = settings.alerts.smtp_password
     
     if not password or password == "dien_mat_khau_ung_dung_vao_day":
-        context.log.warning("⚠️ [Hooks Bỏ Qua]: Không tìm thấy mật khẩu SMTP hợp lệ trong .env. Đã hủy lệnh gửi Mail.")
+        context.log.warning("[WARN] [Hooks Bỏ Qua]: Không tìm thấy mật khẩu SMTP hợp lệ trong .env. Đã hủy lệnh gửi Mail.")
         return False
         
     msg = MIMEMultipart()
@@ -34,21 +34,21 @@ def _send_email(subject: str, body: str, context: HookContext) -> bool:
         server.quit()
         return True
     except Exception as e:
-        context.log.error(f"❌ [Lỗi Hệ Thống SMTP Gửi Email]: {e}")
+        context.log.error(f"[ERROR] Lỗi Hệ Thống SMTP Gửi Email: {e}")
         return False
 
 @success_hook
 def step_success_alert(context: HookContext):
     """Gửi email khi một Bước (Op) báo cáo hoàn thành phi thường."""
     op_name = context.op.name
-    subject = f"✅ [DAGSTER THÀNH CÔNG] - Bước: {op_name} đã vượt ải"
+    subject = f"[DAGSTER SUCCESS] - Bước: {op_name} đã vượt ải"
     body = (
         f"Hoàn thành xuất sắc bước: {op_name}\n"
         f"Thời gian báo cáo: Hãy kiểm tra Dagster UI để xem chi tiết log thời gian.\n\n"
         f"Hệ thống tự động: Real Estate Data Platform"
     )
     if _send_email(subject, body, context):
-        context.log.info(f"Đã gửi email thông báo THÀNH CÔNG cho {op_name}")
+        context.log.info(f"[SUCCESS] Đã gửi email thông báo THÀNH CÔNG cho {op_name}")
 
 @failure_hook
 def step_failure_alert(context: HookContext):
@@ -56,7 +56,7 @@ def step_failure_alert(context: HookContext):
     op_name = context.op.name
     error_msg = str(context.op_exception) if context.op_exception else "Lỗi không xác định."
     
-    subject = f"❌ [DAGSTER THẤT BẠI] - Báo Động Đỏ Bước: {op_name}"
+    subject = f"[DAGSTER FAIL] - Báo Động Đỏ Bước: {op_name}"
     body = (
         f"Đã xảy ra lỗi nghiêm trọng quật ngã bước: {op_name}!\n\n"
         f"Vui lòng đăng nhập Dagster để kiểm tra Stack Trace ngay.\n\n"
@@ -64,4 +64,4 @@ def step_failure_alert(context: HookContext):
         f"Hệ thống cảnh báo: Real Estate Data Platform"
     )
     if _send_email(subject, body, context):
-        context.log.info(f"Đã gửi email báo THẤT BẠI cho {op_name}")
+        context.log.info(f"[DONE] Đã gửi email báo THẤT BẠI cho {op_name}")

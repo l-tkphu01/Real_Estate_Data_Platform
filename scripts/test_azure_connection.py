@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from pathlib import Path
 
@@ -37,9 +37,9 @@ def run_smoke_test():
         print(f"   - Tìm thấy: {k}")
         
     if test_blob_name in keys:
-        print("\n✅ TẤT CẢ CÁC BƯỚC TEST ĐẦU CUỐI ĐÃ THÀNH CÔNG RỰC RỠ!")
+        print("\nTẤT CẢ CÁC BƯỚC TEST ĐẦU CUỐI ĐÃ THÀNH CÔNG RỰC RỠ!")
     else:
-        print("\n❌ LỖI: Không tìm thấy file vừa ghi trong Container.")
+        print("\nLỖI: Không tìm thấy file vừa ghi trong Container.")
 
 if __name__ == "__main__":
     run_smoke_test()

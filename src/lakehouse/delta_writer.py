@@ -66,7 +66,7 @@ def append_bronze(spark: Any, df: Any, target_path: str) -> None:
         .partitionBy("ingest_date")
         .save(target_path)
     )
-    logger.info(f"✅ Đã Append dữ liệu thô vào Bronze Delta (partitioned by ingest_date)")
+    logger.info(f"[SUCCESS] Đã Append dữ liệu thô vào Bronze Delta (partitioned by ingest_date)")
 
 def upsert_silver(spark: Any, df: Any, target_path: str) -> None:
     """Merge transformed records vào silver Delta table."""
@@ -102,7 +102,7 @@ def append_gold(spark: Any, df: Any, target_path: str) -> None:
             .execute()
         )
         logger.info(
-            f"✅ Gold MERGE thành công (giữ lịch sử, update snapshot cùng ngày)"
+            f"[SUCCESS] Gold MERGE thành công (giữ lịch sử, update snapshot cùng ngày)"
         )
     else:
         # Lần đầu: ghi mới với partition
@@ -113,7 +113,7 @@ def append_gold(spark: Any, df: Any, target_path: str) -> None:
             .partitionBy("snapshot_date")
             .save(target_path)
         )
-        logger.info(f"✅ Gold table tạo mới (partitioned by snapshot_date)")
+        logger.info(f"[SUCCESS] Gold table tạo mới (partitioned by snapshot_date)")
 
 
 def overwrite_gold(spark: Any, df: Any, target_path: str) -> None:
@@ -122,6 +122,6 @@ def overwrite_gold(spark: Any, df: Any, target_path: str) -> None:
     Khuyến nghị: Dùng append_gold() để giữ lịch sử snapshot.
     """
     logger.warning(
-        "⚠️ overwrite_gold() đã deprecated. Dùng append_gold() để giữ lịch sử."
+        "[WARN] overwrite_gold() đã deprecated. Dùng append_gold() để giữ lịch sử."
     )
     _overwrite_delta(df, target_path)

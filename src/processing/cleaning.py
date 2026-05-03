@@ -164,15 +164,15 @@ def clean_records(df: DataFrame, mdm_settings: Any = None) -> DataFrame:
 
                 ml_resolved = sum(1 for p in predictions 
                                   if p.get("property_type_ml") and p.get("property_type_confidence", 0) >= CONFIDENCE_THRESHOLD)
-                print(f"✅ ML Property Type: phân loại thêm {ml_resolved}/{unmapped_count} bản ghi")
+                print(f"[SUCCESS] ML Property Type: phân loại thêm {ml_resolved}/{unmapped_count} bản ghi")
             else:
-                print("✅ Regex đã phân loại 100% property_type — Không cần gọi ML")
+                print("[SUCCESS] Regex đã phân loại 100% property_type — Không cần gọi ML")
 
         except ImportError:
-            print("⚠️ Không tìm thấy ml_classifier hoặc thiếu thư viện. Bỏ qua ML fallback.")
+            print("[WARN] Không tìm thấy ml_classifier hoặc thiếu thư viện. Bỏ qua ML fallback.")
         except Exception as e:
             import traceback
-            print(f"⚠️ ML property_type lỗi: {e}")
+            print(f"[ERROR] ML property_type lỗi: {e}")
             traceback.print_exc()
 
     # ═══════════════════════════════════════════════════════════════
@@ -182,7 +182,7 @@ def clean_records(df: DataFrame, mdm_settings: Any = None) -> DataFrame:
     try:
         from src.processing.ml_classifier import predict_batch, CONFIDENCE_THRESHOLD
 
-        print("🏷️ Đang chạy ML Listing Type...")
+        print("[START] Đang chạy ML Listing Type...")
         all_pd = clean_df.toPandas()
         records = all_pd.to_dict("records")
         predictions = predict_batch(records)
@@ -202,14 +202,14 @@ def clean_records(df: DataFrame, mdm_settings: Any = None) -> DataFrame:
 
         from collections import Counter
         lt_counts = Counter(listing_types)
-        print(f"✅ Listing Type phân loại xong: {dict(lt_counts)}")
+        print(f"[DONE] Listing Type phân loại xong: {dict(lt_counts)}")
 
     except ImportError:
-        print("⚠️ Thiếu ml_classifier. Gán listing_type = UNKNOWN.")
+        print("[WARN] Thiếu ml_classifier. Gán listing_type = UNKNOWN.")
         clean_df = clean_df.withColumn("listing_type", F.lit("UNKNOWN"))
     except Exception as e:
         import traceback
-        print(f"⚠️ Listing type lỗi: {e}")
+        print(f"[ERROR] Listing type lỗi: {e}")
         traceback.print_exc()
         clean_df = clean_df.withColumn("listing_type", F.lit("UNKNOWN"))
 

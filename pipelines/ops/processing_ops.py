@@ -82,7 +82,7 @@ def op_write_bronze_delta(context, raw_records: list[dict[str, Any]]) -> list[di
         
     target_path = _delta_path(settings.storage.bronze_prefix, settings)
     append_bronze(spark, df, target_path)
-    context.log.info(f"✅ Đã lưu trữ lịch sử cục raw vào Bronze layer tại: {target_path}")
+    context.log.info(f"[SUCCESS] Đã lưu trữ lịch sử cục raw vào Bronze layer tại: {target_path}")
     
     # Push nguyên trạng records để chạy tiếp hướng CDC ở chốt tiếp theo
     return raw_records 
@@ -203,7 +203,7 @@ def op_clean_records(context, validation_result: dict[str, Any]) -> list[dict[st
         
         fail_count = df_failed.count()
         if fail_count > 0:
-            context.log.error(f"🚨 CẢNH BÁO: Phát hiện {fail_count} bản ghi địa lý không hợp lệ (UNMAPPED). Đã đưa vào Quarantine!")
+            context.log.error(f"CẢNH BÁO: Phát hiện {fail_count} bản ghi địa lý không hợp lệ (UNMAPPED). Đã đưa vào Quarantine!")
             
         # Chỉ những bản ghi MAPPED mới được đi tiếp vào Silver
         cleaned_df = df_success.drop("mapping_status")

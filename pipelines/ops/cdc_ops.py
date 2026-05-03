@@ -49,14 +49,14 @@ def op_detect_changes(context, raw_records: list[dict[str, Any]]) -> list[dict[s
     total = len(raw_records)
     
     context.log.info("="*50)
-    context.log.info(f"📊 BÁO CÁO HOẠT ĐỘNG CDC FINGERPRINT")
+    context.log.info(f"[CDC] BÁO CÁO HOẠT ĐỘNG CDC FINGERPRINT")
     context.log.info("="*50)
-    context.log.info(f"📥 Tổng số tin nhắn quét đầu vào : {total} bản ghi")
-    context.log.info(f"🆕 Số tin hoàn toàn mới (NEW)    : {stats_new} bản ghi (Sẽ Insert)")
-    context.log.info(f"🔄 Số tin bị giấu đổi giá (UP)   : {stats_updated} bản ghi (Sẽ Upsert đè giá lên Delta Lake)")
-    context.log.info(f"🗑️ Số tin rác trùng lặp (DROP)   : {stats_unchanged} bản ghi (Bị CHẶN đứng ở cửa ngõ)")
+    context.log.info(f"[INPUT]  Tổng số tin nhắn quét đầu vào : {total} bản ghi")
+    context.log.info(f"[NEW]    Số tin hoàn toàn mới (NEW)    : {stats_new} bản ghi (Sẽ Insert)")
+    context.log.info(f"[UPDATE] Số tin bị giấu đổi giá (UP)   : {stats_updated} bản ghi (Sẽ Upsert đè giá lên Delta Lake)")
+    context.log.info(f"[DROP]   Số tin rác trùng lặp (DROP)   : {stats_unchanged} bản ghi (Bị CHẶN đứng ở cửa ngõ)")
     context.log.info("-" * 50)
-    context.log.info(f"✅ Đưa vào máy cày PySpark tổng cộng: {stats_new + stats_updated} tin đăng.")
+    context.log.info(f"[SUCCESS] Đưa vào máy cày PySpark tổng cộng: {stats_new + stats_updated} tin đăng.")
     context.log.info("="*50)
     
     return new_or_updated_records
