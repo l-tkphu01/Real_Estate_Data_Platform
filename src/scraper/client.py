@@ -125,9 +125,9 @@ async def crawl_with_batching(
     num_batches = (max_pages + pages_per_batch - 1) // pages_per_batch
 
     logger.info(
-        f"🚀 Bắt đầu cào BĐS: {max_pages} pages, "
+        f"[START] Bắt đầu cào BĐS: {max_pages} pages, "
         f"{pages_per_batch}/batch, delay={batch_delay_seconds}s, "
-        f"sem={semaphore_size} → {num_batches} batches"
+        f"sem={semaphore_size} -> {num_batches} batches"
     )
 
     for batch_idx in range(num_batches):
@@ -135,7 +135,7 @@ async def crawl_with_batching(
         end_page = min(start_page + pages_per_batch, max_pages)
 
         logger.info(
-            f"📦 Batch {batch_idx + 1}/{num_batches}: "
+            f"[BATCH] Batch {batch_idx + 1}/{num_batches}: "
             f"trang {start_page + 1}-{end_page}"
         )
 
@@ -150,10 +150,10 @@ async def crawl_with_batching(
 
         # Delay giữa batches (trừ batch cuối)
         if batch_idx < num_batches - 1:
-            logger.info(f"⏸️  Chờ {batch_delay_seconds}s...")
+            logger.info(f"[WAIT] Chờ {batch_delay_seconds}s...")
             await asyncio.sleep(batch_delay_seconds)
 
-    logger.info(f"✅ Hoàn thành: {len(results)} records từ {max_pages} pages")
+    logger.info(f"[DONE] Hoàn thành: {len(results)} records từ {max_pages} pages")
     return results
 
 
@@ -170,7 +170,7 @@ def fetch_raw_records(settings: Settings) -> list[dict[str, Any]]:
     timeout = settings.ingestion.request_timeout_seconds
 
     logger.info(
-        f"🚀 Bắt đầu cào BĐS từ: {url} "
+        f"[START] Bắt đầu cào BĐS từ: {url} "
         f"(max_pages={max_pages}, sem={semaphore_size})"
     )
 
@@ -192,8 +192,8 @@ def fetch_raw_records(settings: Settings) -> list[dict[str, Any]]:
                 timeout=timeout,
             )
         )
-        logger.info(f"✅ Thành công lấy {len(data)} tin BĐS.")
+        logger.info(f"[SUCCESS] Thành công lấy {len(data)} tin BĐS.")
         return data
     except Exception as e:
-        logger.error(f"❌ Lấy dữ liệu thất bại sau nhiều lần thử: {e}")
+        logger.error(f"[ERROR] Lấy dữ liệu thất bại sau nhiều lần thử: {e}")
         return []

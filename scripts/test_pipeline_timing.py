@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Test script để measure pipeline timing với detailed logging.
 
 Usage:
@@ -25,7 +25,7 @@ Timeline output:
     └─ Total processing: X.XXs
     
     ┌─ TOTAL PIPELINE TIME: X.XXs (should be < 300s)
-    └─ Status: ✅ PASSED or 🚨 TIMEOUT
+    └─ Status: PASSED or TIMEOUT
 """
 
 import time
@@ -80,7 +80,7 @@ class TimingTracker:
             "cumulative": time.time() - self.job_start
         })
         
-        print(f" ✅ {step_duration:.2f}s")
+        print(f" {step_duration:.2f}s")
         return result
     
     def summary(self):
@@ -93,7 +93,7 @@ class TimingTracker:
             print(f"      {i}. {step['name']:<40} {step['duration']:>7.2f}s (cumulative: {step['cumulative']:.2f}s)")
         
         print()
-        status = "✅ PASSED" if total_duration < self.timeout_seconds else "🚨 TIMEOUT"
+        status = "PASSED" if total_duration < self.timeout_seconds else "TIMEOUT"
         print(f"   Total: {total_duration:.2f}s / {self.timeout_seconds}s {status}")
         print(f"{'='*70}\n")
         
@@ -242,7 +242,7 @@ def main():
     # ─────────────────────────────────────────────────────────────────
     total_duration = time.time() - pipeline_start
     total_timeout = 600  # 2 × 300s per job
-    total_status = "✅ PASSED" if total_duration < total_timeout else "🚨 TIMEOUT"
+    total_status = "PASSED" if total_duration < total_timeout else "TIMEOUT"
     
     print("\n")
     print("╔" + "═"*68 + "╗")
@@ -260,7 +260,7 @@ def main():
     print(f"   Throughput: {results['ingestion']['records'] / total_duration:.1f} records/sec")
     
     # Return exit code
-    return 0 if total_status == "✅ PASSED" else 1
+    return 0 if total_status == "PASSED" else 1
 
 
 if __name__ == "__main__":
@@ -268,7 +268,7 @@ if __name__ == "__main__":
         exit_code = main()
         sys.exit(exit_code)
     except Exception as e:
-        print(f"\n❌ Error: {e}", file=sys.stderr)
+        print(f"\nError: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc()
         sys.exit(1)

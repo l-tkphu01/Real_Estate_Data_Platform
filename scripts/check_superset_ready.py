@@ -1,4 +1,4 @@
-"""Kiểm tra data sẵn sàng cho Superset Dashboard."""
+﻿"""Kiểm tra data sẵn sàng cho Superset Dashboard."""
 import duckdb
 
 con = duckdb.connect()
@@ -26,10 +26,10 @@ for name, path in layers.items():
     try:
         r = con.execute(f"SELECT COUNT(*) FROM delta_scan('{path}')").fetchone()
         cols = con.execute(f"SELECT * FROM delta_scan('{path}') LIMIT 0").description
-        status = "✅" if r[0] > 0 else "⚠️ EMPTY"
+        status = "" if r[0] > 0 else "EMPTY"
         print(f"  {status} {name:25s}: {r[0]:>6,} rows | {len(cols):>3} cols")
     except Exception as e:
-        print(f"  ❌ {name:25s}: {str(e)[:50]}")
+        print(f"  {name:25s}: {str(e)[:50]}")
 
 print("=" * 60)
 con.close()

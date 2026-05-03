@@ -29,7 +29,7 @@ def _load_bundle(bundle_path: str) -> dict[str, Any]:
     """Load model bundle từ file .pkl (cached để không load lại nhiều lần)."""
     import joblib
     bundle = joblib.load(bundle_path)
-    logger.info(f"✅ Đã load ML model bundle: {bundle_path} (v{bundle.get('version', '?')})")
+    logger.info(f"[SUCCESS] Đã load ML model bundle: {bundle_path} (v{bundle.get('version', '?')})")
     return bundle
 
 
@@ -114,7 +114,7 @@ def predict_batch(
     list_path = os.path.join(model_dir, "listing_type_bundle.pkl")
 
     if not os.path.exists(prop_path) or not os.path.exists(list_path):
-        logger.warning(f"⚠️ Không tìm thấy model .pkl tại {model_dir}. Bỏ qua ML inference.")
+        logger.warning(f"[WARN] Không tìm thấy model .pkl tại {model_dir}. Bỏ qua ML inference.")
         return [{"property_type_ml": None, "listing_type_ml": None} for _ in records]
 
     prop_bundle = _load_bundle(prop_path)

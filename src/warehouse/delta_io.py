@@ -55,7 +55,7 @@ def write_dimension(spark: Any, df: Any, table_name: str, settings: Any) -> str:
         .option("overwriteSchema", "true") \
         .save(target)
     
-    logger.info(f"✅ Đã ghi dimension [{table_name}] → {target} ({df.count()} rows)")
+    logger.info(f"[SUCCESS] Đã ghi dimension [{table_name}] → {target} ({df.count()} rows)")
     return target
 
 
@@ -98,7 +98,7 @@ def write_fact(
             .execute()
         )
         logger.info(
-            f"✅ Đã MERGE fact [{table_name}] on {key_columns} → {target}"
+            f"[SUCCESS] Đã MERGE fact [{table_name}] on {key_columns} → {target}"
         )
     else:
         # First write hoặc full overwrite
@@ -107,7 +107,7 @@ def write_fact(
             .option("overwriteSchema", "true") \
             .save(target)
         logger.info(
-            f"✅ Đã OVERWRITE fact [{table_name}] → {target} ({df.count()} rows)"
+            f"[SUCCESS] Đã OVERWRITE fact [{table_name}] → {target} ({df.count()} rows)"
         )
     
     return target
@@ -122,7 +122,7 @@ def read_dimension(spark: Any, table_name: str, settings: Any) -> Any:
     target = _warehouse_path(table_name, settings)
     
     if not DeltaTable.isDeltaTable(spark, target):
-        logger.warning(f"⚠️ Dimension [{table_name}] chưa tồn tại tại {target}")
+        logger.warning(f"[WARN] Dimension [{table_name}] chưa tồn tại tại {target}")
         return None
     
     return spark.read.format("delta").load(target)
