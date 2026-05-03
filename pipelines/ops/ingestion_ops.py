@@ -23,7 +23,7 @@ def op_ingest_and_store_raw(context) -> str:
     raw_data = fetch_raw_records(settings)
 
     if not raw_data:
-        context.log.warning("Không tải được bản ghi nào hoặc danh sách rỗng.")
+        context.log.warning("[WARN] Không tải được bản ghi nào hoặc danh sách rỗng.")
         return "empty"
 
     # 2. Normalize qua Pydantic schema
@@ -38,7 +38,7 @@ def op_ingest_and_store_raw(context) -> str:
         return "empty"
 
     context.log.info(
-        f"Đã chuẩn hóa thành công {len(normalized_data)}/{len(raw_data)} bản ghi."
+        f"[SUCCESS] Đã chuẩn hóa thành công {len(normalized_data)}/{len(raw_data)} bản ghi."
     )
 
     # 3. Tạo blob key: raw/real_estate_YYYYMMDD_HHMMSS.json
@@ -49,7 +49,7 @@ def op_ingest_and_store_raw(context) -> str:
     storage.put_json(blob_name, normalized_data)
 
     context.log.info(
-        f"✅ Upload thành công: {blob_name} ({len(normalized_data)} records)"
+        f"[SUCCESS] Upload thành công: {blob_name} ({len(normalized_data)} records)"
     )
 
     return blob_name

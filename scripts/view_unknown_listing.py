@@ -1,4 +1,4 @@
-"""Xem các bản ghi có listing_type = UNKNOWN trong Silver Delta."""
+﻿"""Xem các bản ghi có listing_type = UNKNOWN trong Silver Delta."""
 from pyspark.sql import SparkSession
 import os
 
@@ -12,12 +12,12 @@ spark = SparkSession.builder \
 silver_path = "/opt/dagster/app/data/lakehouse/silver/real_estate"
 
 if not os.path.exists(silver_path):
-    print("❌ Silver Delta chưa tồn tại!")
+    print("Silver Delta chưa tồn tại!")
 else:
     df = spark.read.format("delta").load(silver_path)
     
     if "listing_type" not in df.columns:
-        print("❌ Cột listing_type chưa có trong Silver")
+        print("Cột listing_type chưa có trong Silver")
     else:
         total = df.count()
         unknown_df = df.filter(df.listing_type == "UNKNOWN")

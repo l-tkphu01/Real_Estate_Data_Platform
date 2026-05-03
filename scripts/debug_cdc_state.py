@@ -1,4 +1,4 @@
-"""Debug CDC - chạy TRỰC TIẾP trong Docker container với env đúng."""
+﻿"""Debug CDC - chạy TRỰC TIẾP trong Docker container với env đúng."""
 import os
 os.environ["AZURE_ENDPOINT"] = "http://azurite:10000/devstoreaccount1"
 os.environ.setdefault("APP_PROFILE", "local")
@@ -15,11 +15,11 @@ print("\n========== TẤT CẢ FILE CDC TRONG AZURITE ==========")
 try:
     cdc_blobs = client.list_keys(settings.storage.cdc_state_prefix)
     if not cdc_blobs:
-        print("  ⚠️ KHÔNG CÓ FILE NÀO (Sổ tay trống rỗng)")
+        print("  KHÔNG CÓ FILE NÀO (Sổ tay trống rỗng)")
     for b in cdc_blobs:
         print(f"  📄 {b}")
 except Exception as e:
-    print(f"  ❌ Lỗi list: {e}")
+    print(f"  Lỗi list: {e}")
 
 # 2. Thử đọc fingerprints.json
 fp_file = f"{settings.storage.cdc_state_prefix}/{settings.cdc.state_filename}"
@@ -35,9 +35,9 @@ try:
                 break
             print(f"  ID={k}  Hash={v}")
     else:
-        print(f"  ⚠️ Định dạng lạ: {type(fingerprint_data)}")
+        print(f"  Định dạng lạ: {type(fingerprint_data)}")
 except Exception as e:
-    print(f"  ❌ Không đọc được (có thể chưa tồn tại): {e}")
+    print(f"  Không đọc được (có thể chưa tồn tại): {e}")
 
 # 3. Đọc Raw data mới nhất
 print(f"\n========== RAW DATA MỚI NHẤT ==========")

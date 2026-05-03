@@ -1,4 +1,4 @@
-import os
+﻿import os
 os.environ.setdefault("APP_PROFILE", "local")
 
 from src.config import load_settings
@@ -15,7 +15,7 @@ def test_alert():
     print(f"  - Người nhận: {settings.alerts.recipient_email}")
     
     if not settings.alerts.smtp_password:
-        print("  ❌ CẢNH BÁO: Không tìm thấy SMTP_PASSWORD trong file .env!")
+        print("  CẢNH BÁO: Không tìm thấy SMTP_PASSWORD trong file .env!")
         return
 
     print("\n🚀 Bắt đầu gửi email test...")
@@ -24,9 +24,9 @@ def test_alert():
             subject="🔔 [Real Estate Platform] Test Email Thành Công!",
             body="Xin chúc mừng! Nếu bạn nhận được email này, tính năng bắn thông báo Alerts của Dagster đã cấu hình thành công mỹ mãn."
         )
-        print("✅ Email đã được bắn đi thành công! Hãy kiểm tra hộp thư của bạn (kể cả mục Spam nhé).")
+        print("Email đã được bắn đi thành công! Hãy kiểm tra hộp thư của bạn (kể cả mục Spam nhé).")
     except Exception as e:
-        print(f"❌ Lỗi gửi email: {e}")
+        print(f"Lỗi gửi email: {e}")
         
 if __name__ == "__main__":
     test_alert()

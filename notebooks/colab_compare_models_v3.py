@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # NOTEBOOK 2 (COLAB v3.1 – FINAL EDITION): HUẤN LUYỆN & SO SÁNH 4 MÔ HÌNH AI
 # ==============================================================================
 # Bản hoàn chỉnh cuối cùng – Tương thích dữ liệu Final Edition
@@ -26,7 +26,7 @@ try:
 except ImportError:
     colab_files = None
 
-print("✅ Thư viện ML đã sẵn sàng (Final Edition v3.1)!")
+print("Thư viện ML đã sẵn sàng (Final Edition v3.1)!")
 
 # ══════════════════════════════════════════════════════════════
 # BƯỚC 1: LOAD DỮ LIỆU ĐÃ CHUẨN BỊ
@@ -43,7 +43,7 @@ except FileNotFoundError:
         df = pd.read_csv(file_name)
         print(f"📦 Đã load {len(df)} bản ghi.")
     except Exception as e:
-        print(f"⚠️ Dùng data giả lập: {e}")
+        print(f"Dùng data giả lập: {e}")
         rows = []
         for i in range(200):
             rows.append({
@@ -84,7 +84,7 @@ ALL_FEATURES = TEXT_FEATURES + NUMERIC_FEATURES + FLAG_FEATURES + LOCATION_FEATU
 # ══════════════════════════════════════════════════════════════
 # BƯỚC 3: PIPELINE TIỀN XỬ LÝ (ColumnTransformer)
 # ══════════════════════════════════════════════════════════════
-# 🚨 CHỐNG DATA LEAKAGE: Tính district_avg_price CHỈ trên TRAIN SET
+# CHỐNG DATA LEAKAGE: Tính district_avg_price CHỈ trên TRAIN SET
 def add_location_value_features(X_train, X_test):
     """Tính giá trung bình theo quận CHỈ từ train, rồi map sang test."""
     valid = X_train[X_train["price_double"] > 0]
@@ -181,7 +181,7 @@ def train_and_compare(df_full, y_encoded, label_encoder, task_name):
         f1 = f1_score(y_test, y_pred, average="weighted")
 
         results.append([name, f"{acc*100:.2f}%", f"{f1:.4f}", f"{elapsed:.2f}s"])
-        print(f"  ✅ {name}: Accuracy={acc*100:.1f}%, F1={f1:.4f} ({elapsed:.2f}s)")
+        print(f"  {name}: Accuracy={acc*100:.1f}%, F1={f1:.4f} ({elapsed:.2f}s)")
 
         if acc > best_acc:
             best_acc = acc
@@ -211,7 +211,7 @@ def train_and_compare(df_full, y_encoded, label_encoder, task_name):
     cv_scores = cross_val_score(best_model, X_train, y_train, cv=5, scoring="accuracy")
     print(f"   Scores:  {[f'{s:.3f}' for s in cv_scores]}")
     print(f"   Mean:    {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
-    print(f"   → Model {'ỔN ĐỊNH ✅' if cv_scores.std() < 0.05 else 'CẦN CẢI THIỆN ⚠️'}")
+    print(f"   → Model {'ỔN ĐỊNH ' if cv_scores.std() < 0.05 else 'CẦN CẢI THIỆN '}")
 
     return best_model, best_name, best_acc
 
@@ -283,4 +283,4 @@ try:
     print("  ⬇️  Đã tải toàn bộ files về máy!")
 except: pass
 
-print("\n✅ HOÀN THÀNH! Đưa 2 file .pkl bundle này lên Azure Data Lake để Pipeline Dagster xài! 🚀")
+print("\nHOÀN THÀNH! Đưa 2 file .pkl bundle này lên Azure Data Lake để Pipeline Dagster xài! 🚀")

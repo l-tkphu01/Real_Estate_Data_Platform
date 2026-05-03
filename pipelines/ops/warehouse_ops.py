@@ -86,10 +86,10 @@ def op_read_silver_for_warehouse(context) -> list[dict[str, Any]]:
     try:
         silver_df = spark.read.format("delta").load(silver_path)
         count = silver_df.count()
-        context.log.info(f"📖 Đã đọc Silver Delta: {count} records từ {silver_path}")
+        context.log.info(f"[SUCCESS] Đã đọc Silver Delta: {count} records từ {silver_path}")
         return [row.asDict() for row in silver_df.collect()]
     except Exception as e:
-        context.log.error(f"❌ Không đọc được Silver Delta tại {silver_path}: {e}")
+        context.log.error(f"[ERROR] Không đọc được Silver Delta tại {silver_path}: {e}")
         return []
 
 
@@ -103,10 +103,10 @@ def op_read_gold_for_warehouse(context) -> list[dict[str, Any]]:
     try:
         gold_df = spark.read.format("delta").load(gold_path)
         count = gold_df.count()
-        context.log.info(f"📖 Đã đọc Gold Delta: {count} records từ {gold_path}")
+        context.log.info(f"[SUCCESS] Đã đọc Gold Delta: {count} records từ {gold_path}")
         return [row.asDict() for row in gold_df.collect()]
     except Exception as e:
-        context.log.error(f"❌ Không đọc được Gold Delta tại {gold_path}: {e}")
+        context.log.error(f"[ERROR] Không đọc được Gold Delta tại {gold_path}: {e}")
         return []
 
 
@@ -126,45 +126,45 @@ def op_build_dimensions(context, silver_records: list[dict[str, Any]]) -> dict[s
     paths: dict[str, str] = {}
 
     if not silver_records:
-        context.log.warning("⚠️ Silver records rỗng, bỏ qua build dimensions.")
+        context.log.warning("[WARN] Silver records rỗng, bỏ qua build dimensions.")
         return paths
 
     silver_df = spark.createDataFrame(silver_records)
 
     # --- dim_location ---
-    context.log.info("🏗️ Building dim_location...")
+    context.log.info("[BUILD] Building dim_location...")
     dim_loc = build_dim_location(silver_df, getattr(settings, "mdm", None))
     paths["dim_location"] = write_dimension(spark, dim_loc, "dim_location", settings)
     loc_count = dim_loc.count()
-    context.log.info(f"   ✅ dim_location: {loc_count} khu vực")
+    context.log.info(f"   [DONE] dim_location: {loc_count} khu vực")
 
     # --- dim_property_type ---
-    context.log.info("🏗️ Building dim_property_type...")
+    context.log.info("[BUILD] Building dim_property_type...")
     dim_pt = build_dim_property_type(silver_df)
     paths["dim_property_type"] = write_dimension(spark, dim_pt, "dim_property_type", settings)
     pt_count = dim_pt.count()
-    context.log.info(f"   ✅ dim_property_type: {pt_count} loại BĐS")
+    context.log.info(f"   [DONE] dim_property_type: {pt_count} loại BĐS")
 
     # --- dim_price_segment ---
-    context.log.info("🏗️ Building dim_price_segment...")
+    context.log.info("[BUILD] Building dim_price_segment...")
     dim_ps = build_dim_price_segment(spark)
     paths["dim_price_segment"] = write_dimension(spark, dim_ps, "dim_price_segment", settings)
-    context.log.info(f"   ✅ dim_price_segment: 4 phân khúc giá")
+    context.log.info(f"   [DONE] dim_price_segment: 4 phân khúc giá")
 
     # --- dim_area_segment ---
-    context.log.info("🏗️ Building dim_area_segment...")
+    context.log.info("[BUILD] Building dim_area_segment...")
     dim_as = build_dim_area_segment(spark)
     paths["dim_area_segment"] = write_dimension(spark, dim_as, "dim_area_segment", settings)
-    context.log.info(f"   ✅ dim_area_segment: 4 phân khúc diện tích")
+    context.log.info(f"   [DONE] dim_area_segment: 4 phân khúc diện tích")
 
     # --- dim_time ---
-    context.log.info("🏗️ Building dim_time...")
+    context.log.info("[BUILD] Building dim_time...")
     dim_time = build_dim_time(spark)
     paths["dim_time"] = write_dimension(spark, dim_time, "dim_time", settings)
     time_count = dim_time.count()
-    context.log.info(f"   ✅ dim_time: {time_count} ngày (2024-2028)")
+    context.log.info(f"   [DONE] dim_time: {time_count} ngày (2024-2028)")
 
-    context.log.info(f"🎉 Hoàn thành build {len(paths)} Dimension tables!")
+    context.log.info(f"[SUCCESS] Hoàn thành build {len(paths)} Dimension tables!")
     return paths
 
 
@@ -187,7 +187,7 @@ def op_build_fact_listing(
     settings = context.resources.settings
 
     if not silver_records or not dim_paths:
-        context.log.warning("⚠️ Thiếu dữ liệu nguồn, bỏ qua fact_listing.")
+        context.log.warning("[WARN] Thiếu dữ liệu nguồn, bỏ qua fact_listing.")
         return "empty"
 
     silver_df = spark.createDataFrame(silver_records)
@@ -199,11 +199,11 @@ def op_build_fact_listing(
     dim_as = read_dimension(spark, "dim_area_segment", settings)
 
     if dim_loc is None or dim_pt is None or dim_ps is None or dim_as is None:
-        context.log.error("❌ Không đọc được Dimension tables. Chạy op_build_dimensions trước.")
+        context.log.error("[ERROR] Không đọc được Dimension tables. Chạy op_build_dimensions trước.")
         return "error"
 
     # Build fact
-    context.log.info("🏗️ Building fact_listing...")
+    context.log.info("[BUILD] Building fact_listing...")
     fact_df = build_fact_listing(silver_df, dim_loc, dim_pt, dim_ps, dim_as)
     
     fact_path = write_fact(
@@ -212,7 +212,7 @@ def op_build_fact_listing(
     )
     
     fact_count = fact_df.count()
-    context.log.info(f"🎉 fact_listing: {fact_count} tin đăng được ghi vào {fact_path}")
+    context.log.info(f"[SUCCESS] fact_listing: {fact_count} tin đăng được ghi vào {fact_path}")
     return fact_path
 
 
@@ -231,7 +231,7 @@ def op_build_fact_market_snapshot(
     settings = context.resources.settings
 
     if not gold_records or not dim_paths:
-        context.log.warning("⚠️ Thiếu dữ liệu nguồn, bỏ qua fact_market_snapshot.")
+        context.log.warning("[WARN] Thiếu dữ liệu nguồn, bỏ qua fact_market_snapshot.")
         return "empty"
 
     gold_df = spark.createDataFrame(gold_records)
@@ -239,11 +239,11 @@ def op_build_fact_market_snapshot(
     # Đọc dim_location
     dim_loc = read_dimension(spark, "dim_location", settings)
     if dim_loc is None:
-        context.log.error("❌ Không đọc được dim_location. Chạy op_build_dimensions trước.")
+        context.log.error("[ERROR] Không đọc được dim_location. Chạy op_build_dimensions trước.")
         return "error"
 
     # Build fact
-    context.log.info("🏗️ Building fact_market_snapshot...")
+    context.log.info("[BUILD] Building fact_market_snapshot...")
     snapshot_df = build_fact_market_snapshot(gold_df, dim_loc)
     
     # APPEND mode: tích lũy lịch sử snapshot qua các lần chạy
@@ -255,6 +255,6 @@ def op_build_fact_market_snapshot(
     
     snapshot_count = snapshot_df.count()
     context.log.info(
-        f"🎉 fact_market_snapshot: {snapshot_count} khu vực được ghi vào {snapshot_path}"
+        f"[SUCCESS] fact_market_snapshot: {snapshot_count} khu vực được ghi vào {snapshot_path}"
     )
     return snapshot_path
