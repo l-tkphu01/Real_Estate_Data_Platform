@@ -112,20 +112,25 @@ Mô-đun `ml_classifier.py` là "Bộ não AI" của pipeline, được gọi sa
 
 ![Star Schema ERD](./docs/images/Star_schema.png)
 
-### Chi tiết bảng:
-| Bảng | Loại | Mô tả |
-|---|---|---|
-| `dim_location` | Dimension | Thành phố, quận/huyện, vùng miền |
-| `dim_property_type` | Dimension | Loại hình BĐS (Villa, Căn hộ, Nhà phố...) |
-| `dim_price_segment` | Dimension SCD2 | Phân khúc giá có theo dõi lịch sử (`valid_from`, `valid_to`, `is_current`) |
-| `dim_area_segment` | Dimension SCD1 | Phân khúc diện tích (Ghi đè, không theo dõi lịch sử) |
-| `dim_time` | Dimension | Phân cấp ngày/tháng/quý/năm |
-| `fact_listing` | Fact | Từng tin đăng BĐS (Point-in-Time Join với SCD2) |
-| `fact_market_snapshot` | Fact (Aggregate) | Thống kê giá thị trường hàng ngày |
+### Chi tiết các bảng và ý nghĩa phân tích kinh doanh (Business Value):
 
-**Kỹ thuật nổi bật:** 
-- **Range-Join**: Nối Fact và Dim bằng khoảng giá trị (`price_floor` <= giá <= `price_ceiling`) thay vì foreign key truyền thống.
-- **SCD Type 1 vs Type 2**: `dim_area_segment` dùng SCD1 (luôn lấy định nghĩa mới nhất), trong khi `dim_price_segment` dùng SCD2. Ví dụ: Năm 2022 nhà "Cao cấp" là >10 tỷ, năm 2024 lạm phát nên "Cao cấp" là >15 tỷ. SCD2 lưu cả 2 khoảng thời gian để bảng Fact năm 2022 join đúng với định nghĩa cũ, Fact năm 2024 join định nghĩa mới!
+Việc thiết kế Star Schema không chỉ để tối ưu kỹ thuật mà nhằm phục vụ trực tiếp việc giải quyết các bài toán phân tích trên Power BI:
+
+| Bảng | Loại | Trả lời Câu hỏi Kinh doanh (Business Questions) & Ý nghĩa Phân tích |
+|---|---|---|
+| `dim_location` | Dimension | **"Khu vực nào đang có nguồn cung cao nhất? Sự chênh lệch giá giữa trung tâm và vùng ven?"**<br>Cho phép Drill-down từ Vùng miền -> Tỉnh/Thành -> Quận/Huyện trên bản đồ mật độ (Heatmap). |
+| `dim_property_type` | Dimension | **"Loại hình BĐS nào đang chiếm ưu thế?"**<br>Nhờ kết hợp AI/ML (XGBoost) phân loại, giúp bóc tách tỉ trọng Căn hộ, Nhà phố, Đất nền chính xác ngay cả khi nguồn dữ liệu thô nhập nhằng. |
+| `dim_price_segment` | Dimension SCD2 | **"Xu hướng dịch chuyển nguồn cung theo lạm phát?"**<br>Sử dụng SCD2 để giữ lịch sử thay đổi định nghĩa "Cao cấp" / "Bình dân". Đảm bảo biểu đồ phân khúc giá các năm trước không bị thay đổi hồi tố khi định nghĩa giá thị trường trượt đi theo thời gian. |
+| `dim_area_segment` | Dimension SCD1 | **"Người dùng có xu hướng chuộng không gian nhỏ gọn hay diện tích lớn?"**<br>Phân cụm diện tích để phân tích giá trị trung bình trên mỗi mét vuông (Price per Sqm). |
+| `dim_time` | Dimension | **"Tính mùa vụ (Seasonality) của thị trường BĐS?"**<br>Phục vụ các chỉ số tăng trưởng MoM (Month-over-Month), YoY (Year-over-Year) và xu hướng giá theo Quý. |
+| `fact_listing` | Fact (Granular) | **Bảng dữ liệu chi tiết nhất (1 Row = 1 Tin đăng).**<br>Hỗ trợ Cross-filtering chi tiết từng tin đăng, phân tích "Tuổi thọ tin đăng" (Listing Age - số ngày tồn tại trên thị trường) để đánh giá thanh khoản. |
+| `fact_market_snapshot` | Fact (Aggregate) | **"Bức tranh toàn cảnh thị trường hôm nay ra sao?"**<br>Bảng Fact tổng hợp (Pre-aggregated) dùng để dashboard load cực nhanh khi xem các chỉ số vĩ mô như Giá Trung Vị (Median Price), P90 Price, và Số lượng tin tổng quan theo từng khu vực. |
+
+**Quyết định Kiến trúc & Kỹ thuật Dữ liệu (Data Engineering Highlights):** 
+- **Non-Equi Join (Range-Join) cho Continuous Dimensions:** Thay vì dùng foreign key thông thường, mô hình áp dụng cơ chế Range-Join (`price_floor` <= `giá_thực_tế` < `price_ceiling`) để ánh xạ linh hoạt các biến số liên tục (giá trị, diện tích) vào các phân khúc rời rạc, tối ưu hóa việc phân nhóm trên Dashboard.
+- **Chiến lược Quản lý Lịch sử Dữ liệu (SCD Strategy):** Áp dụng linh hoạt kiến trúc Hybrid SCD để cân bằng giữa hiệu suất và tính chính xác lịch sử:
+  - **SCD Type 1 cho Phân khúc Diện tích (`dim_area_segment`):** Chuẩn mực diện tích (Nhỏ/Vừa/Lớn) có tính ổn định cao. Áp dụng SCD Type 1 (Ghi đè - Overwrite) nhằm tối ưu không gian lưu trữ và tăng tốc độ truy vấn cho hệ thống.
+  - **SCD Type 2 cho Phân khúc Giá (`dim_price_segment`):** Định nghĩa về giá thay đổi liên tục do lạm phát (VD: Chuẩn nhà "Cao cấp" năm 2022 là >10 tỷ, nhưng 2024 trượt giá lên >15 tỷ). Việc áp dụng SCD Type 2 (lưu vết `valid_from`, `valid_to`) giúp nền tảng **bảo toàn tính chính xác của báo cáo trong quá khứ** (Historical Truth), đảm bảo các Fact record luôn được join đúng với bối cảnh kinh tế tại thời điểm phát sinh.
 
 ---
 
