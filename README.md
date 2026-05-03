@@ -9,7 +9,7 @@
 ![Dagster](https://img.shields.io/badge/Dagster-1.8.12-blueviolet.svg)
 ![Azure](https://img.shields.io/badge/Microsoft_Azure-Cloud-blue.svg)
 ![Power BI](https://img.shields.io/badge/Power_BI-Service-yellow.svg)
-![Machine Learning](https://img.shields.io/badge/Machine_Learning-Random_Forest-yellow.svg)
+![Machine Learning](https://img.shields.io/badge/Machine_Learning-XGBoost_%7C_Random_Forest-yellow.svg)
 
 ## 1. 🎯 Tổng quan dự án (Project Overview)
 Dự án xây dựng một hệ thống **Data Platform toàn diện (End-to-End)** thu thập, xử lý và phân tích dữ liệu **Bất Động Sản** từ API.
@@ -18,7 +18,7 @@ Hệ thống được thiết kế theo tư tưởng **Modern Data Stack**, tuâ
 Mục tiêu thiết kế hướng tới **Sẵn sàng cho Production (Production-ready)**:
 - 🔄 **Idempotent & Replay-safe**: Chạy lại pipeline nhiều lần không lo trùng lặp dữ liệu, tích hợp cơ chế **CDC (Change Data Capture)**.
 - ⚙️ **Config-driven**: Điều khiển tập trung qua `YAML` và `.env`, logic code hoàn toàn tách biệt. Chuyển đổi Local ↔ Azure Cloud mượt mà.
-- 🧠 **Hybrid ML Classification & DLQ**: Kết hợp Rule-based (Regex) và Machine Learning (Random Forest) để phân loại BĐS. Các dữ liệu "dị thường" tự động đẩy vào vùng cách ly Quarantine (Dead Letter Queue).
+- 🧠 **Hybrid ML Classification & DLQ**: Kết hợp Rule-based (Regex) và Machine Learning (XGBoost & Random Forest) để phân loại BĐS. Các dữ liệu "dị thường" tự động đẩy vào vùng cách ly Quarantine (Dead Letter Queue).
 - 🧩 **Scalability**: Xử lý phân tán với PySpark, scale dễ dàng lên **Azure Databricks**.
 - 📊 **Cloud-to-Cloud BI**: Tích hợp trực tiếp từ Azure Data Lake lên Power BI Service với cơ chế tự động làm mới (Scheduled Refresh).
 
@@ -33,7 +33,7 @@ Mục tiêu thiết kế hướng tới **Sẵn sàng cho Production (Production
 | **Dagster** | Orchestration | Software-Defined Assets, Observability trực quan, type-safe. |
 | **Azure ADLS Gen2** | Object Storage (Data Lake) | Lưu trữ toàn bộ data Lakehouse. Kích hoạt Hierarchical Namespace tối ưu cho Big Data. |
 | **Azure Databricks**| Cloud Compute | Chạy các cụm xử lý ETL phân tán thông qua Databricks Connect. |
-| **Scikit-learn** | Machine Learning | Xây dựng Random Forest Model để phân loại loại hình BĐS thông minh. |
+| **Scikit-learn & XGBoost** | Machine Learning | Ứng dụng các mô hình XGBoost và Random Forest để phân loại loại hình BĐS thông minh. |
 | **Power BI Service** | Cloud BI & Dashboard | Trực quan hóa dữ liệu tự động, Scheduled Refresh không cần cài đặt Gateway trung gian. |
 | **Docker Compose** | Containerization | Đóng gói và chạy toàn bộ hạ tầng (Dagster, Superset local) đồng nhất. |
 
@@ -98,7 +98,7 @@ flowchart TB
 - **CDC Fingerprinting**: Tính mã băm SHA-256 để so sánh trạng thái, chỉ xuất ra những bản ghi mới hoặc có thay đổi thực sự nhằm tối ưu chi phí tính toán (Compute Cost).
 
 **Phase 3: Transformation & Machine Learning (Silver Layer)**
-- **Hybrid Classification**: Phân loại thuộc tính BĐS qua 2 lớp (Tập luật Regex → Mô hình Machine Learning Random Forest).
+- **Hybrid Classification**: Phân loại thuộc tính BĐS qua 2 lớp (Tập luật Regex → Mô hình Machine Learning: XGBoost & Random Forest).
 - **Data Quarantine (DLQ)**: Bản ghi rác hoặc không nhận diện được sẽ bị đẩy vào vùng cách ly để kỹ sư review thay vì làm hỏng dữ liệu sạch.
 - **Deduplication**: Xóa bỏ các tin đăng trùng lặp bằng Window Function.
 - **UPSERT** (MERGE) vào Delta Silver table đảm bảo tính Idempotency.
